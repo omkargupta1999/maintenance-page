@@ -9,12 +9,12 @@ spec:
   gateways:
     - dev-istio-system/epay-dev-gateway
   http:
-    - name: "redirect-to-maintenance-route"
+    - name: "global-maintenance-redirect"
       match:
         - uri:
-            regex: ".*"          # Match all paths, with or without slashes
+            regex: ".*"     # Match everything including /, /demo/, /ui/
       redirect:
         scheme: https
-        authority: maintenance-dev-frontend.apps.dev.sbiepay.sbi  # External OCP route
-        uri: /maintenance/       # Target path
+        authority: dev.epay.sbi
+        uri: /maintenance
         redirectCode: 302
