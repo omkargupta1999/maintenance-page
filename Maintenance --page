@@ -9,62 +9,14 @@ spec:
   gateways:
     - dev-istio-system/epay-dev-gateway
   http:
-    # 1️⃣ Match everything except the maintenance page itself
-    - match:
+    - name: "force-all-to-maintenance"
+      match:
         - uri:
-            prefix: /
+            regex: ".*"  # Match absolutely every URI after .sbi/
       rewrite:
-        uri: /maintenance
+        uri: /maintenancepage/
       route:
         - destination:
-            host: maintenancefe-maintenance-frontend.dev-frontend.svc.cluster.local
+            host: maintenance.dev-frontend.svc.cluster.local
             port:
               number: 8080
-      # 2️⃣ Ensure this rule takes precedence over others
-      priority: 1000
-
-
-
-
-
-
-
-
-
-
-
-
-
-apiVersion: networking.istio.io/v1beta1
-kind: VirtualService
-metadata:
-  name: maintenance-override
-  namespace: dev-istio-system
-spec:
-  hosts:
-    - dev.epay.sbi
-  gateways:
-    - dev-istio-system/epay-dev-gateway
-  http:
-    # 1️⃣ Redirect HTTP → HTTPS
-    - match:
-        - port: 80
-      redirect:
-        scheme: https
-        redirectCode: 301
-
-    # 2️⃣ Route ALL HTTPS traffic (except maintenance path itself)
-    - match:
-        - uri:
-            regex: "^(?!/maintenance).*"  # Match everything except /maintenance path
-      route:
-        - destination:
-            host: maintenancefe-maintenance-frontend.dev-frontend.svc.cluster.local
-            port:
-              number: 8080
-      # Do NOT rewrite URI — so browser keeps original path
-      headers:
-        response:
-          add:
-            Strict-Transport-Security: "max-age=31536000; includeSubDomains; preload"
-      priority: 1000
