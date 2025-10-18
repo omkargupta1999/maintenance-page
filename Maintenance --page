@@ -12,11 +12,9 @@ spec:
     - name: "force-all-to-maintenance"
       match:
         - uri:
-            regex: ".*"  # Match absolutely every URI after .sbi/
-      rewrite:
+            regex: ".*"   # Match every URI (/, /demo, /demo/, etc.)
+      redirect:
+        scheme: https
+        authority: dev.epay.sbi
         uri: /maintenancepage/
-      route:
-        - destination:
-            host: maintenance.dev-frontend.svc.cluster.local
-            port:
-              number: 8080
+        redirectCode: 302
