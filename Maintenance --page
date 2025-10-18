@@ -1,20 +1,126 @@
+[osuser@bastion ~]$ oc get route   -n dev-frontend maintenance -o yaml
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  annotations:
+    openshift.io/generated-by: OpenShiftWebConsole
+    openshift.io/host.generated: "true"
+  creationTimestamp: "2025-10-13T15:19:48Z"
+  labels:
+    app: maintenance
+    app.kubernetes.io/component: maintenance
+    app.kubernetes.io/instance: maintenance
+    app.kubernetes.io/name: maintenance
+    app.kubernetes.io/part-of: integration-app
+    app.openshift.io/runtime-version: v4
+  name: maintenance
+  namespace: dev-frontend
+  resourceVersion: "461112509"
+  uid: aa652d66-d1b1-49b6-ac06-c5c8da4daa2e
+spec:
+  host: maintenance-dev-frontend.apps.dev.sbiepay.sbi
+  port:
+    targetPort: 8080-tcp
+  tls:
+    insecureEdgeTerminationPolicy: Redirect
+    termination: edge
+  to:
+    kind: Service
+    name: maintenance
+    weight: 100
+  wildcardPolicy: None
+status:
+  ingress:
+  - conditions:
+    - lastTransitionTime: "2025-10-13T15:19:48Z"
+      status: "True"
+      type: Admitted
+    host: maintenance-dev-frontend.apps.dev.sbiepay.sbi
+    routerCanonicalHostname: router-default.apps.dev.sbiepay.sbi
+    routerName: default
+    wildcardPolicy: None
+[osuser@bastion ~]$
+[osuser@bastion ~]$ oc get vs    -n dev-frontend
+Warning: short name "vs" could also match lower priority resource volumesnapshots.snapshot.storage.k8s.io
+NAME                                 GATEWAYS                                HOSTS              AGE
+dev-merchantfe-merchantfe-service    ["dev-istio-system/epay-dev-gateway"]   ["dev.epay.sbi"]   79d
+frontend-transactionfe               ["dev-istio-system/epay-dev-gateway"]   ["dev.epay.sbi"]   39h
+maintenancefe-maintenance-frontend   ["dev-istio-system/epay-dev-gateway"]   ["dev.epay.sbi"]   38h
+merchant-integration                 ["dev-istio-system/epay-dev-gateway"]   ["dev.epay.sbi"]   9d
+[osuser@bastion ~]$ oc get vs    -n dev-frontend maintenancefe-maintenance-frontend -o yaml
+Warning: short name "vs" could also match lower priority resource volumesnapshots.snapshot.storage.k8s.io
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
-  name: maintenance-override
-  namespace: dev-istio-system
+  annotations:
+    meta.helm.sh/release-name: maintenancefe
+    meta.helm.sh/release-namespace: dev-frontend
+  creationTimestamp: "2025-10-16T15:29:16Z"
+  generation: 1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+  name: maintenancefe-maintenance-frontend
+  namespace: dev-frontend
+  resourceVersion: "464895698"
+  uid: 64e0b734-4228-4b7d-8fa2-4238b13665b7
 spec:
-  hosts:
-    - dev.epay.sbi
   gateways:
-    - dev-istio-system/epay-dev-gateway
+  - dev-istio-system/epay-dev-gateway
+  hosts:
+  - dev.epay.sbi
   http:
-    - name: "force-all-to-maintenance"
-      match:
-        - uri:
-            regex: ".*"   # Match every URI (/, /demo, /demo/, etc.)
-      redirect:
-        scheme: https
-        authority: dev.epay.sbi
-        uri: /maintenancepage/
-        redirectCode: 302
+  - match:
+    - uri:
+        prefix: /maintenance
+    route:
+    - destination:
+        host: maintenancefe-maintenance-frontend
+        port:
+          number: 8080
+[osuser@bastion ~]$
+[osuser@bastion ~]$ oc get svc     -n dev-frontend
+^[[ANAME                                      TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)             AGE
+integration                               ClusterIP   172.30.96.73     <none>        8080/TCP,8443/TCP   9d
+maintenancefe-maintenance-frontend        ClusterIP   172.30.94.239    <none>        8080/TCP            42h
+merchantfe-merchant-frontend              ClusterIP   172.30.34.35     <none>        8080/TCP            79d
+merchantsimulator-epaymerchantsimulater   ClusterIP   172.30.48.37     <none>        8080/TCP            189d
+transactionfe-transaction-frontend        ClusterIP   172.30.236.239   <none>        8080/TCP            189d
+[osuser@bastion ~]$ oc get svc     -n dev-frontend maintenancefe-maintenance-frontend -o yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    meta.helm.sh/release-name: maintenancefe
+    meta.helm.sh/release-namespace: dev-frontend
+  creationTimestamp: "2025-10-16T12:04:12Z"
+  labels:
+    app.kubernetes.io/instance: maintenancefe
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: maintenance-frontend
+    app.kubernetes.io/version: 1.16.0
+    helm.sh/chart: maintenance-frontend-0.1.0
+  name: maintenancefe-maintenance-frontend
+  namespace: dev-frontend
+  resourceVersion: "464714873"
+  uid: 7c82856c-a0e8-4b23-9975-12814bffc16f
+spec:
+  clusterIP: 172.30.94.239
+  clusterIPs:
+  - 172.30.94.239
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+  - name: 8080-tcp
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app.kubernetes.io/instance: maintenancefe
+    app.kubernetes.io/name: maintenance-frontend
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}
+[osuser@bastion ~]$
