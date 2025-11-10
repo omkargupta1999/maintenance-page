@@ -1,3 +1,76 @@
+[osuser@bastion ~]$ oc exec -it payment-paymentservice-85c864d9dd-s6dwd -n dev-transaction sh
+kubectl exec [POD] [COMMAND] is DEPRECATED and will be removed in a future version. Use kubectl exec [POD] -- [COMMAND] instead.
+sh-5.1#
+sh-5.1#
+sh-5.1#
+sh-5.1# openssl s_client -showcerts -connect smsapipprod.sbi.co.in:9443 </dev/null 2>/dev/null | sed -n '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/p' > /tmp/sbi-certs.pem
+sh-5.1#
+sh-5.1# cat /tmp/sbi-certs.pem
+sh-5.1# ls -lrth /tmp/
+total 8.0K
+-rw-rw-rw-. 1 root root 1.3K Nov 10 07:07 sms.cer
+-rw-rw-rw-. 1 root root 2.1K Nov 10 07:07 epaycert.cer
+drwxr-xr-x. 1 root root   15 Nov 10 07:12 hsperfdata_root
+drwx------. 2 root root    6 Nov 10 07:12 tomcat-docbase.9093.11035668815309493701
+drwx------. 3 root root   18 Nov 10 07:12 tomcat.9093.5450070479971168899
+drwx------. 2 root root   37 Nov 10 07:12 1000003_Fees_Report5669119941388843682
+drwx------. 2 root root   37 Nov 10 07:24 1000003_Fees_Report5724771040563532177
+drwx------. 2 root root   37 Nov 10 07:31 1000003_Fees_Report16234629323199178020
+-rw-r--r--. 1 root root    0 Nov 10 07:40 sbi-certs.pem
+sh-5.1# openssl x509 -in /tmp/sbi-certs.pem -noout -issuer -subject -dates
+sh: openssl: command not found
+sh-5.1# openssl x509 -in /tmp/sbi-certs.pem -noout -issuer -subject -dates
+sh: openssl: command not found
+sh-5.1# keytool -list -keystore "$JAVA_HOME/lib/security/cacerts" -storepass changeit | head
+Warning: use -cacerts option to access cacerts keystore
+Keystore type: JKS
+Keystore provider: SUN
+
+Your keystore contains 148 entries
+
+accvraiz1, Nov 10, 2025, trustedCertEntry,
+Certificate fingerprint (SHA-256): 9A:6E:C0:12:E1:A7:DA:9D:BE:34:19:4D:47:8A:D7:C0:DB:18:22:FB:07:1D:F1:29:81:49:6E:D1:04:38:41:13
+acraizfnmt-rcm, Nov 10, 2025, trustedCertEntry,
+Certificate fingerprint (SHA-256): EB:C5:57:0C:29:01:8C:4D:67:B1:AA:12:7B:AF:12:F7:03:B4:61:1E:BC:17:B7:DA:B5:57:38:94:17:9B:93:FA
+acraizfnmt-rcmservidoresseguros, Nov 10, 2025, trustedCertEntry,
+sh-5.1# curl -v https://smsapipprod.sbi.co.in:9443/bmg/sms/epaypgotpdom
+*   Trying 10.191.190.27:9443...
+* Connected to smsapipprod.sbi.co.in (10.191.190.27) port 9443 (#0)
+* ALPN, offering h2
+* ALPN, offering http/1.1
+*  CAfile: /etc/pki/tls/certs/ca-bundle.crt
+* TLSv1.0 (OUT), TLS header, Certificate Status (22):
+* TLSv1.3 (OUT), TLS handshake, Client hello (1):
+* TLSv1.2 (IN), TLS header, Certificate Status (22):
+* TLSv1.3 (IN), TLS handshake, Server hello (2):
+* TLSv1.2 (IN), TLS header, Certificate Status (22):
+* TLSv1.2 (IN), TLS handshake, Certificate (11):
+* TLSv1.2 (OUT), TLS header, Unknown (21):
+* TLSv1.2 (OUT), TLS alert, unknown CA (560):
+* SSL certificate problem: self-signed certificate in certificate chain
+* Closing connection 0
+curl: (60) SSL certificate problem: self-signed certificate in certificate chain
+More details here: https://curl.se/docs/sslcerts.html
+
+curl failed to verify the legitimacy of the server and therefore could not
+establish a secure connection to it. To learn more about this situation and
+how to fix it, please visit the web page mentioned above.
+sh-5.1#
+sh-5.1# openssl s_client -connect smsapipprod.sbi.co.in:9443 -showcerts
+sh: openssl: command not found
+sh-5.1#
+sh-5.1# openssl s_client -connect smsapipprod.sbi.co.in:9443 -showcerts
+sh: openssl: command not found
+sh-5.1# openssl
+sh: openssl: command not found
+sh-5.1# openssl s_client -connect smsapipprod.sbi.co.in:9443 -showcerts
+sh: openssl: command not found
+
+
+
+
+
+
 Quick diagnostics (run inside the container or locally where the container can reach the host)
 
 Inspect the remote cert chain (replace host:port as needed):
