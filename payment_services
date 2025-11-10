@@ -1,3 +1,53 @@
+Quick diagnostics (run inside the container or locally where the container can reach the host)
+
+Inspect the remote cert chain (replace host:port as needed):
+
+openssl s_client -showcerts -connect smsapipprod.sbi.co.in:9443 </dev/null 2>/dev/null | sed -n '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/p' > /tmp/sbi-certs.pem
+openssl x509 -in /tmp/sbi-certs.pem -noout -issuer -subject -dates
+
+
+Look at the issuer values — are they public CAs (like DigiCert, Let's Encrypt) or an internal CA?
+
+From a shell inside the container check JVM cacerts listing:
+
+keytool -list -keystore "$JAVA_HOME/lib/security/cacerts" -storepass changeit | head
+
+
+(If JAVA_HOME not set, locate cacerts: /usr/lib/jvm/.../lib/security/cacerts)
+
+Test simple TLS connect from container:
+
+curl -v https://smsapipprod.sbi.co.in:9443/bmg/sms/epaypgotpdom
+# or
+openssl s_client -connect smsapipprod.sbi.co.in:9443 -showcerts
+
+
+If curl shows certificate problems too, that points to missing system CAs or MITM.
+
+
+
+What to check next (practical checklist)
+
+Run openssl s_client -connect smsapipprod.sbi.co.in:9443 -showcerts and note the issuer names. If issuer is an internal CA, import it.
+
+Verify container can curl the endpoint successfully after import.
+
+Confirm keytool -list -keystore $JAVA_HOME/lib/security/cacerts -storepass changeit shows your new alias.
+
+Rebuild the image with the new Dockerfile modifications and redeploy.
+
+If still failing, capture the stack trace and the issuer chain and share them.
+
+
+
+
+
+
+
+
+
+
+
 getting this error for payment services container..
 
 Error has been observed at the following site(s):
