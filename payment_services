@@ -1,3 +1,14 @@
+# from bastion (or any machine with openssl)
+openssl s_client -showcerts -connect smsapipprod.sbi.co.in:9443 </dev/null 2>/dev/null > /tmp/sbi_chain.txt
+# extract each cert from the saved output (if needed)
+sed -n '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/p' /tmp/sbi_chain.txt > /tmp/sbi-certs.pem
+# split into separate files (optional)
+awk 'BEGIN{c=0} /BEGIN/{c++;fname="/tmp/sbi-cert-"c".pem"} {print > fname}' /tmp/sbi-certs.pem
+# Inspect issuer & subject for each cert
+for f in /tmp/sbi-cert-*.pem; do echo "----- $f -----"; openssl x509 -in $f -noout -subject -issuer -dates -fingerprint; done
+
+
+
 [osuser@bastion ~]$ oc exec -it payment-paymentservice-85c864d9dd-s6dwd -n dev-transaction sh
 kubectl exec [POD] [COMMAND] is DEPRECATED and will be removed in a future version. Use kubectl exec [POD] -- [COMMAND] instead.
 sh-5.1#
