@@ -1,0 +1,40 @@
+getting this error for payment services container..
+
+Error has been observed at the following site(s):
+        *__checkpoint ⇢ Request to POST https://smsapipprod.sbi.co.in:9443/bmg/sms/epaypgotpdom [DefaultWebClient]
+Original Stack Trace:
+                at org.springframework.web.reactive.function.client.ExchangeFunctions$DefaultExchangeFunction.lambda$wrapException$9(ExchangeFunctions.java:136)
+                at reactor.core.publisher.MonoErrorSupplied.subscribe(MonoErrorSupplied.java:55)
+                at reactor.core.publisher.Mono.subscribe(Mono.java:4576)
+                at reactor.core.publisher.FluxOnErrorResume$ResumeSubscriber.onError(FluxOnErrorResume.java:103)
+                at reactor.core.publisher.FluxPeek$PeekSubscriber.onError(FluxPeek.java:222)
+                at reactor.core.publisher.FluxPeek$PeekSubscriber.onError(FluxPeek.java:222)
+                at reactor.core.publisher.FluxPeek$PeekSubscriber.onError(FluxPeek.java:222)
+                at reactor.core.publisher.MonoNext$NextSubscriber.onError(MonoNext.java:93)
+                at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onError(MonoFlatMapMany.java:205)
+                at reactor.core.publisher.SerializedSubscriber.onError(SerializedSubscriber.java:124)
+
+2025-11-10 07:12:47.751 INFO | com.epay.payment.externalservice.S3Service:85 | principal=NA  | scenario=/api/payments/v1/cashchallan/sbi/pdf-generation | operation=POST | correlation=a777ce6f-cb33-40e4-9a76-35d7c28456a4 | methodName=uploadFile | getContent. software.amazon.awssdk.core.sync.RequestBody@785aa09c
+2025-11-10 07:12:48.577 ERROR | com.epay.payment.externalservice.S3Service:89 | principal=NA  | scenario=/api/payments/v1/cashchallan/sbi/pdf-generation | operation=POST | correlation=a777ce6f-cb33-40e4-9a76-35d7c28456a4 | methodName=uploadFile | S3 - Failed to upload file:1762758767707-1000003_Fees_Report.pdf on s3 with error:{}
+software.amazon.awssdk.core.exception.SdkClientException: Unable to execute HTTP request: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+        at software.amazon.awssdk.core.exception.SdkClientException$BuilderImpl.build(SdkClientException.java:111)
+        at software.amazon.awssdk.core.exception.SdkClientException.create(SdkClientException.java:47)
+        at software.amazon.awssdk.core.internal.http.pipeline.stages.utils.RetryableStageHelper.setLastException(RetryableStageHelper.java:227)
+				
+				
+				        at java.base/sun.security.ssl.CertificateMessage$T12CertificateConsumer.checkServerCerts(CertificateMessage.java:625)
+        ... 29 common frames omitted
+Caused by: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+        at java.base/sun.security.provider.certpath.SunCertPathBuilder.build(SunCertPathBuilder.java:148)
+        at java.base/sun.security.provider.certpath.SunCertPathBuilder.engineBuild(SunCertPathBuilder.java:129)
+        at java.base/java.security.cert.CertPathBuilder.build(CertPathBuilder.java:297)
+        at java.base/sun.security.validator.PKIXValidator.doBuild(PKIXValidator.java:383)
+        ... 34 common frames omitted
+2025-11-10 07:12:46.523 WARN | com.sbi.epay.notification.thirdpartyservice.SmsClient:91 | principal=  | scenario= | operation= | correlation= | methodName=lambda$sendSMS$5 | [e4541425, L:/172.16.16.21:49516 - R:smsapipprod.sbi.co.in/10.191.190.27:9443] The connection observed an error
+javax.net.ssl.SSLHandshakeException: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+        at java.base/sun.security.ssl.Alert.createSSLException(Alert.java:130)
+
+		
+		
+		
+We are using this below dockerfile to build the images...
