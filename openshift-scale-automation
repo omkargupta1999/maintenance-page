@@ -1,0 +1,294 @@
+Absolutely YES — you can and SHOULD create a separate, dedicated GitLab repository for this scaling/drill automation.
+This is actually the best practice because:
+
+✅ Why a separate repo is better
+
+Keeps infra/automation code isolated from application code
+
+Allows you to restrict access (only SRE/DevOps should scale prod workloads)
+
+Easier to reuse across multiple application teams
+
+Makes it safe to test in a dedicated CI/CD project
+
+Provides clear versioning, rollback and audit history
+
+⭐ Recommended Repository Structure
+
+Create a new GitLab repo named:
+
+openshift-scale-automation
+
+
+Inside it, use this structure:
+
+openshift-scale-automation/
+│
+├── .gitlab/
+│   ├── scale-config.yaml        # namespaces + deployments to scale
+│   └── scale-oc.sh              # main oc scale script
+│
+├── .gitlab-ci.yml               # pipeline
+│
+└── README.md                    # documentation for your team
+
+
+This is a clean, maintainable repo dedicated only to DR drills / scaling operations.
+
+⭐ Step-by-Step: How to set this up in GitLab
+
+Follow these steps exactly:
+
+STEP 1 — Create a New Repo in GitLab
+
+Name it:
+
+openshift-scale-automation
+
+
+Make it private and give access only to DevOps or SRE teams.
+
+STEP 2 — Add These Files
+File 1: .gitlab/scale-config.yaml
+namespaces:
+  - preprod
+  - staging
+  - sit-admin
+
+deployments:
+  preprod:
+    - epay-admin
+    - epay-gateway
+    - epay-merchant-service
+
+  staging:
+    - epay-admin
+    - epay-gateway
+
+scale_all:
+  - sit-admin
+
+File 2: .gitlab/scale-oc.sh
+
+(Contains scaling logic)
+
+#!/usr/bin/env bash
+set -euo pipefail
+
+CONFIG_FILE=".gitlab/scale-config.yaml"
+
+OPENSHIFT_SERVER="${OPENSHIFT_SERVER:-}"
+OPENSHIFT_TOKEN="${OPENSHIFT_TOKEN:-}"
+REPLICAS_DOWN="${REPLICAS_DOWN:-0}"
+REPLICAS_UP="${REPLICAS_UP:-1}"
+ACTION="${ACTION:-cycle}"
+WAIT_PER_OBJECT="${WAIT_PER_OBJECT:-120}"
+
+if ! command -v yq >/dev/null 2>&1; then
+  echo "ERROR: yq is required in the runner image."
+  exit 2
+fi
+
+if [[ -z "$OPENSHIFT_SERVER" || -z "$OPENSHIFT_TOKEN" ]]; then
+  echo "ERROR: OPENSHIFT_SERVER and OPENSHIFT_TOKEN must be set"
+  exit 1
+fi
+
+if [[ ! -f "$CONFIG_FILE" ]]; then
+  echo "ERROR: Config file not found!"
+  exit 1
+fi
+
+echo "Logging into OpenShift..."
+oc login "$OPENSHIFT_SERVER" --token="$OPENSHIFT_TOKEN" --insecure-skip-tls-verify >/dev/null
+echo "Logged in as: $(oc whoami)"
+
+mapfile -t NAMESPACES < <(yq -r '.namespaces[]' "$CONFIG_FILE")
+
+scale_deploy() {
+  local ns="$1"; local deploy="$2"; local reps="$3"
+  echo "[`date -u +%T`] Scaling $deploy in $ns → $reps"
+
+  if oc get deploy "$deploy" -n "$ns" >/dev/null 2>&1; then
+    oc scale deploy/"$deploy" -n "$ns" --replicas="$reps"
+    if [[ "$reps" -gt 0 ]]; then
+      oc rollout status deploy/"$deploy" -n "$ns" --timeout="${WAIT_PER_OBJECT}s" || true
+    fi
+  else
+    echo "  -> $deploy not found in $ns"
+  fi
+}
+
+scale_namespace() {
+  local ns="$1"; local reps="$2"
+  echo "====== Namespace: $ns  ======"
+
+  if yq -e ".scale_all[] | select(. == \"$ns\")" "$CONFIG_FILE" >/dev/null; then
+    echo "Scaling ALL deployments in $ns"
+    oc get deploy -n "$ns" -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' |
+    while read -r dep; do [[ -n "$dep" ]] && scale_deploy "$ns" "$dep" "$reps"; done
+  else
+    echo "Scaling ONLY configured deployments in $ns"
+    yq -r ".deployments[\"$ns\"][]" "$CONFIG_FILE" |
+    while read -r dep; do [[ -n "$dep" ]] && scale_deploy "$ns" "$dep" "$reps"; done
+  fi
+}
+
+perform_scale() {
+  local reps="$1"
+  for ns in "${NAMESPACES[@]}"; do
+    scale_namespace "$ns" "$reps"
+  done
+}
+
+case "$ACTION" in
+  down) perform_scale "$REPLICAS_DOWN" ;;
+  up) perform_scale "$REPLICAS_UP" ;;
+  cycle)
+    perform_scale "$REPLICAS_DOWN"
+    sleep 5
+    perform_scale "$REPLICAS_UP"
+    ;;
+  *) echo "Invalid ACTION"; exit 1 ;;
+esac
+
+echo "Completed scaling."
+
+File 3: .gitlab-ci.yml
+
+Manual pipeline to scale down/up/cycle:
+
+stages:
+  - scale
+
+variables:
+  REPLICAS_DOWN: "0"
+  REPLICAS_UP: "1"
+  WAIT_PER_OBJECT: "120"
+
+scale-down:
+  stage: scale
+  image: registry.dev.sbiepay.sbi:8443/ubi9/ochelm:03122024
+  variables:
+    ACTION: "down"
+  script:
+    - chmod +x .gitlab/scale-oc.sh
+    - .gitlab/scale-oc.sh
+  when: manual
+  only:
+    - main
+
+scale-up:
+  stage: scale
+  image: registry.dev.sbiepay.sbi:8443/ubi9/ochelm:03122024
+  variables:
+    ACTION: "up"
+  script:
+    - chmod +x .gitlab/scale-oc.sh
+    - .gitlab/scale-oc.sh
+  when: manual
+  only:
+    - main
+
+scale-cycle:
+  stage: scale
+  image: registry.dev.sbiepay.sbi:8443/ubi9/ochelm:03122024
+  variables:
+    ACTION: "cycle"
+  script:
+    - chmod +x .gitlab/scale-oc.sh
+    - .gitlab/scale-oc.sh
+  when: manual
+  only:
+    - main
+
+⭐ STEP 3 — Add GitLab CI Variables
+
+Go to:
+GitLab → Project → Settings → CI/CD → Variables → Add Variable
+
+Add:
+
+Variable	Example Value	Protected
+OPENSHIFT_SERVER	https://api.ocp-cluster.example:6443	✔ YES
+OPENSHIFT_TOKEN	<OCP-service-account-token>	✔ YES
+
+These two are required.
+
+⭐ STEP 4 — Commit & Push
+
+Once files are committed:
+
+git add .
+git commit -m "Add OpenShift scaling automation"
+git push
+
+⭐ STEP 5 — Running the Pipeline (One Click)
+
+Go to:
+
+CI/CD → Pipelines → Run Pipeline
+
+You will see:
+
+▶️ scale-down
+
+→ Scales all target deployments to 0
+
+▶️ scale-up
+
+→ Scales them back to 1 (or custom)
+
+▶️ scale-cycle
+
+→ Down → wait → Up
+
+Click scale-cycle to perform a complete DR drill in one click.
+
+⭐ STEP 6 — Validate
+
+After running scale-down:
+
+oc get pods -n <namespace>
+
+
+All pods for configured deployments should be zero.
+
+Then run scale-up:
+
+oc get pods -n <namespace>
+
+
+Pods should be restored.
+
+⭐ Optional Improvements (I can provide if you want)
+
+Tell me if you want any of these, I will deliver immediately:
+
+1️⃣ Restore EXACT original replica counts
+
+(Not fixed to “1”)
+→ Uses artifact storage to save pre-scale counts and restore exactly.
+
+2️⃣ Auto-disable ArgoCD/Flux during drill
+
+If you use GitOps, pods may reappear automatically.
+
+3️⃣ Enhanced logging & slack notification
+
+For audit trail and alerts.
+
+4️⃣ Multi-cluster support
+
+Run drills across clusters (prod/preprod/DR cluster).
+
+5️⃣ Container image with oc + yq + jq preinstalled
+
+I can provide a Dockerfile for your registry.
+
+If you're ready, I can now prepare:
+
+🔥 A customized README.md for this new repo
+with all steps, screenshots, and instructions for your team.
+
+Would you like that?
