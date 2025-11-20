@@ -1,174 +1,671 @@
-# from bastion (or any machine with openssl)
-openssl s_client -showcerts -connect smsapipprod.sbi.co.in:9443 </dev/null 2>/dev/null > /tmp/sbi_chain.txt
-# extract each cert from the saved output (if needed)
-sed -n '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/p' /tmp/sbi_chain.txt > /tmp/sbi-certs.pem
-# split into separate files (optional)
-awk 'BEGIN{c=0} /BEGIN/{c++;fname="/tmp/sbi-cert-"c".pem"} {print > fname}' /tmp/sbi-certs.pem
-# Inspect issuer & subject for each cert
-for f in /tmp/sbi-cert-*.pem; do echo "----- $f -----"; openssl x509 -in $f -noout -subject -issuer -dates -fingerprint; done
-
-
-
-[osuser@bastion ~]$ oc exec -it payment-paymentservice-85c864d9dd-s6dwd -n dev-transaction sh
-kubectl exec [POD] [COMMAND] is DEPRECATED and will be removed in a future version. Use kubectl exec [POD] -- [COMMAND] instead.
-sh-5.1#
-sh-5.1#
-sh-5.1#
-sh-5.1# openssl s_client -showcerts -connect smsapipprod.sbi.co.in:9443 </dev/null 2>/dev/null | sed -n '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/p' > /tmp/sbi-certs.pem
-sh-5.1#
-sh-5.1# cat /tmp/sbi-certs.pem
-sh-5.1# ls -lrth /tmp/
-total 8.0K
--rw-rw-rw-. 1 root root 1.3K Nov 10 07:07 sms.cer
--rw-rw-rw-. 1 root root 2.1K Nov 10 07:07 epaycert.cer
-drwxr-xr-x. 1 root root   15 Nov 10 07:12 hsperfdata_root
-drwx------. 2 root root    6 Nov 10 07:12 tomcat-docbase.9093.11035668815309493701
-drwx------. 3 root root   18 Nov 10 07:12 tomcat.9093.5450070479971168899
-drwx------. 2 root root   37 Nov 10 07:12 1000003_Fees_Report5669119941388843682
-drwx------. 2 root root   37 Nov 10 07:24 1000003_Fees_Report5724771040563532177
-drwx------. 2 root root   37 Nov 10 07:31 1000003_Fees_Report16234629323199178020
--rw-r--r--. 1 root root    0 Nov 10 07:40 sbi-certs.pem
-sh-5.1# openssl x509 -in /tmp/sbi-certs.pem -noout -issuer -subject -dates
-sh: openssl: command not found
-sh-5.1# openssl x509 -in /tmp/sbi-certs.pem -noout -issuer -subject -dates
-sh: openssl: command not found
-sh-5.1# keytool -list -keystore "$JAVA_HOME/lib/security/cacerts" -storepass changeit | head
-Warning: use -cacerts option to access cacerts keystore
-Keystore type: JKS
-Keystore provider: SUN
-
-Your keystore contains 148 entries
-
-accvraiz1, Nov 10, 2025, trustedCertEntry,
-Certificate fingerprint (SHA-256): 9A:6E:C0:12:E1:A7:DA:9D:BE:34:19:4D:47:8A:D7:C0:DB:18:22:FB:07:1D:F1:29:81:49:6E:D1:04:38:41:13
-acraizfnmt-rcm, Nov 10, 2025, trustedCertEntry,
-Certificate fingerprint (SHA-256): EB:C5:57:0C:29:01:8C:4D:67:B1:AA:12:7B:AF:12:F7:03:B4:61:1E:BC:17:B7:DA:B5:57:38:94:17:9B:93:FA
-acraizfnmt-rcmservidoresseguros, Nov 10, 2025, trustedCertEntry,
-sh-5.1# curl -v https://smsapipprod.sbi.co.in:9443/bmg/sms/epaypgotpdom
-*   Trying 10.191.190.27:9443...
-* Connected to smsapipprod.sbi.co.in (10.191.190.27) port 9443 (#0)
-* ALPN, offering h2
-* ALPN, offering http/1.1
-*  CAfile: /etc/pki/tls/certs/ca-bundle.crt
-* TLSv1.0 (OUT), TLS header, Certificate Status (22):
-* TLSv1.3 (OUT), TLS handshake, Client hello (1):
-* TLSv1.2 (IN), TLS header, Certificate Status (22):
-* TLSv1.3 (IN), TLS handshake, Server hello (2):
-* TLSv1.2 (IN), TLS header, Certificate Status (22):
-* TLSv1.2 (IN), TLS handshake, Certificate (11):
-* TLSv1.2 (OUT), TLS header, Unknown (21):
-* TLSv1.2 (OUT), TLS alert, unknown CA (560):
-* SSL certificate problem: self-signed certificate in certificate chain
-* Closing connection 0
-curl: (60) SSL certificate problem: self-signed certificate in certificate chain
-More details here: https://curl.se/docs/sslcerts.html
-
-curl failed to verify the legitimacy of the server and therefore could not
-establish a secure connection to it. To learn more about this situation and
-how to fix it, please visit the web page mentioned above.
-sh-5.1#
-sh-5.1# openssl s_client -connect smsapipprod.sbi.co.in:9443 -showcerts
-sh: openssl: command not found
-sh-5.1#
-sh-5.1# openssl s_client -connect smsapipprod.sbi.co.in:9443 -showcerts
-sh: openssl: command not found
-sh-5.1# openssl
-sh: openssl: command not found
-sh-5.1# openssl s_client -connect smsapipprod.sbi.co.in:9443 -showcerts
-sh: openssl: command not found
-
-
-
-
-
-
-Quick diagnostics (run inside the container or locally where the container can reach the host)
-
-Inspect the remote cert chain (replace host:port as needed):
-
-openssl s_client -showcerts -connect smsapipprod.sbi.co.in:9443 </dev/null 2>/dev/null | sed -n '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/p' > /tmp/sbi-certs.pem
-openssl x509 -in /tmp/sbi-certs.pem -noout -issuer -subject -dates
-
-
-Look at the issuer values — are they public CAs (like DigiCert, Let's Encrypt) or an internal CA?
-
-From a shell inside the container check JVM cacerts listing:
-
-keytool -list -keystore "$JAVA_HOME/lib/security/cacerts" -storepass changeit | head
-
-
-(If JAVA_HOME not set, locate cacerts: /usr/lib/jvm/.../lib/security/cacerts)
-
-Test simple TLS connect from container:
-
-curl -v https://smsapipprod.sbi.co.in:9443/bmg/sms/epaypgotpdom
-# or
-openssl s_client -connect smsapipprod.sbi.co.in:9443 -showcerts
-
-
-If curl shows certificate problems too, that points to missing system CAs or MITM.
-
-
-
-What to check next (practical checklist)
-
-Run openssl s_client -connect smsapipprod.sbi.co.in:9443 -showcerts and note the issuer names. If issuer is an internal CA, import it.
-
-Verify container can curl the endpoint successfully after import.
-
-Confirm keytool -list -keystore $JAVA_HOME/lib/security/cacerts -storepass changeit shows your new alias.
-
-Rebuild the image with the new Dockerfile modifications and redeploy.
-
-If still failing, capture the stack trace and the issuer chain and share them.
-
-
-
-
-
-
-
-
-
-
-
-getting this error for payment services container..
-
-Error has been observed at the following site(s):
-        *__checkpoint ⇢ Request to POST https://smsapipprod.sbi.co.in:9443/bmg/sms/epaypgotpdom [DefaultWebClient]
-Original Stack Trace:
-                at org.springframework.web.reactive.function.client.ExchangeFunctions$DefaultExchangeFunction.lambda$wrapException$9(ExchangeFunctions.java:136)
-                at reactor.core.publisher.MonoErrorSupplied.subscribe(MonoErrorSupplied.java:55)
-                at reactor.core.publisher.Mono.subscribe(Mono.java:4576)
-                at reactor.core.publisher.FluxOnErrorResume$ResumeSubscriber.onError(FluxOnErrorResume.java:103)
-                at reactor.core.publisher.FluxPeek$PeekSubscriber.onError(FluxPeek.java:222)
-                at reactor.core.publisher.FluxPeek$PeekSubscriber.onError(FluxPeek.java:222)
-                at reactor.core.publisher.FluxPeek$PeekSubscriber.onError(FluxPeek.java:222)
-                at reactor.core.publisher.MonoNext$NextSubscriber.onError(MonoNext.java:93)
-                at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onError(MonoFlatMapMany.java:205)
-                at reactor.core.publisher.SerializedSubscriber.onError(SerializedSubscriber.java:124)
-
-2025-11-10 07:12:47.751 INFO | com.epay.payment.externalservice.S3Service:85 | principal=NA  | scenario=/api/payments/v1/cashchallan/sbi/pdf-generation | operation=POST | correlation=a777ce6f-cb33-40e4-9a76-35d7c28456a4 | methodName=uploadFile | getContent. software.amazon.awssdk.core.sync.RequestBody@785aa09c
-2025-11-10 07:12:48.577 ERROR | com.epay.payment.externalservice.S3Service:89 | principal=NA  | scenario=/api/payments/v1/cashchallan/sbi/pdf-generation | operation=POST | correlation=a777ce6f-cb33-40e4-9a76-35d7c28456a4 | methodName=uploadFile | S3 - Failed to upload file:1762758767707-1000003_Fees_Report.pdf on s3 with error:{}
-software.amazon.awssdk.core.exception.SdkClientException: Unable to execute HTTP request: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
-        at software.amazon.awssdk.core.exception.SdkClientException$BuilderImpl.build(SdkClientException.java:111)
-        at software.amazon.awssdk.core.exception.SdkClientException.create(SdkClientException.java:47)
-        at software.amazon.awssdk.core.internal.http.pipeline.stages.utils.RetryableStageHelper.setLastException(RetryableStageHelper.java:227)
-				
-				
-				        at java.base/sun.security.ssl.CertificateMessage$T12CertificateConsumer.checkServerCerts(CertificateMessage.java:625)
-        ... 29 common frames omitted
-Caused by: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
-        at java.base/sun.security.provider.certpath.SunCertPathBuilder.build(SunCertPathBuilder.java:148)
-        at java.base/sun.security.provider.certpath.SunCertPathBuilder.engineBuild(SunCertPathBuilder.java:129)
-        at java.base/java.security.cert.CertPathBuilder.build(CertPathBuilder.java:297)
-        at java.base/sun.security.validator.PKIXValidator.doBuild(PKIXValidator.java:383)
-        ... 34 common frames omitted
-2025-11-10 07:12:46.523 WARN | com.sbi.epay.notification.thirdpartyservice.SmsClient:91 | principal=  | scenario= | operation= | correlation= | methodName=lambda$sendSMS$5 | [e4541425, L:/172.16.16.21:49516 - R:smsapipprod.sbi.co.in/10.191.190.27:9443] The connection observed an error
-javax.net.ssl.SSLHandshakeException: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
-        at java.base/sun.security.ssl.Alert.createSSLException(Alert.java:130)
-
-		
-		
-		
-We are using this below dockerfile to build the images...
+[root@bastion ~]#  oc get po -A
+NAMESPACE                                          NAME                                                              READY   STATUS                        RESTARTS            AGE
+bookinfo                                           details-v1-7cdd4dfb66-sjtdw                                       2/2     Running                       0                   175d
+bookinfo                                           frontend-75678698dd-mjbjc                                         2/2     Running                       0                   175d
+bookinfo                                           productpage-v1-64d688b59f-8vj69                                   2/2     Running                       0                   175d
+bookinfo                                           ratings-v1-b5bd76854-44cvs                                        2/2     Running                       0                   175d
+bookinfo                                           reviews-v1-75f995d9f8-pwfk9                                       2/2     Running                       0                   123d
+bookinfo                                           reviews-v2-568d898b8-66jld                                        2/2     Running                       0                   123d
+bookinfo                                           reviews-v3-fbdfc566b-fmffl                                        2/2     Running                       0                   123d
+cert-manager-operator                              cert-manager-operator-controller-manager-66c7d768fb-2xdrw         2/2     Running                       0                   16d
+cert-manager                                       cert-manager-9c4876c48-kpp6h                                      1/1     Running                       18 (86d ago)        169d
+cert-manager                                       cert-manager-cainjector-689d68cd96-lldrp                          1/1     Running                       35 (86d ago)        169d
+cert-manager                                       cert-manager-webhook-7d7798bf5c-dbb8s                             1/1     Running                       0                   123d
+default                                            telnetd-server-548746669-v8k2t                                    0/1     ImagePullBackOff              771 (118d ago)      123d
+default                                            telnetd-server-5595646846-9hc9d                                   0/1     ImagePullBackOff              773 (118d ago)      123d
+dev-cache                                          hazelcast-0                                                       1/1     Running                       0                   41d
+dev-cache                                          hazelcast-1                                                       1/1     Running                       0                   169d
+dev-cache                                          hazelcast-2                                                       1/1     Running                       0                   118d
+dev-cache                                          hazelcast-mancenter-0                                             0/1     CrashLoopBackOff              11500 (4m44s ago)   41d
+dev-cdc                                            cdc-data-flow-skipper-745b8c9d49-xx9kg                            0/1     Init:ContainerStatusUnknown   0                   175d
+dev-istio-system                                   dev-istio-gateway-6fdb67c6c7-rt59h                                1/1     Running                       0                   28m
+dev-istio-system                                   dev-istio-gateway-6fdb67c6c7-tx6pw                                1/1     Running                       0                   28m
+dev-istio-system                                   istiod-dev-istio-5df656bc47-42kg9                                 1/1     Running                       0                   30m
+dev-kafka                                          dev-console-console-deployment-59f6847897-ptzg8                   2/2     Running                       0                   42h
+dev-kafka                                          dev-kafka-cluster-broker-0                                        1/1     Running                       0                   6d20h
+dev-kafka                                          dev-kafka-cluster-broker-1                                        1/1     Running                       0                   6d20h
+dev-kafka                                          dev-kafka-cluster-broker-2                                        1/1     Running                       0                   6d20h
+dev-kafka                                          dev-kafka-cluster-controller-3                                    1/1     Running                       0                   8d
+dev-kafka                                          dev-kafka-cluster-controller-4                                    1/1     Running                       0                   8d
+dev-kafka                                          dev-kafka-cluster-controller-5                                    1/1     Running                       0                   8d
+dev-kafka                                          dev-kafka-cluster-cruise-control-65f9b96bd6-8jcds                 1/1     Running                       2 (7d23h ago)       8d
+dev-kafka                                          dev-kafka-cluster-entity-operator-5987597fc7-xcg4k                2/2     Running                       0                   8d
+dev-kafka                                          dev-kafka-mirror-maker-mirrormaker2-0                             0/1     Pending                       0                   8d
+dev-kafka                                          grafana-776fd6bb45-fgvwc                                          1/1     Running                       0                   8d
+dev-offline-jobs                                   pooling-gatewaypooling-56f598d9bf-h79s9                           2/2     Running                       0                   7d23h
+dev-offline-jobs                                   telnetd-server-7c48585c9-s2tkb                                    0/1     ImagePullBackOff              773 (118d ago)      123d
+dev-sbiepay                                        cdcadmin-admincdc-9498b4cdc-h9wnm                                 2/2     Running                       0                   169d
+dev-sbiepay                                        epaycard-76846d6cbf-ffdwm                                         1/1     Running                       0                   169d
+dev-sbiepay                                        epaytransactionservicedcms-597d994bdd-ct552                       1/1     Running                       0                   169d
+dev-sbiepay                                        gemfire-codetest-5bb484bc7b-2wg24                                 0/1     Init:0/1                      0                   169d
+dev-sbiepay                                        gemfire-codetest-758c65564f-597kc                                 0/1     Init:0/1                      0                   169d
+dev-sbiepay                                        javasimulator-javautilityapisimulator-869c8dc78f-tdnll            1/1     Running                       0                   169d
+dev-sbiepay                                        payment-bincheck-68cbf4bb4d-4m7jd                                 0/1     CrashLoopBackOff              45748 (3m8s ago)    169d
+dev-spark-operator                                 spark-kubernetes-operator-7d975469d9-ppflp                        1/1     Running                       2 (16d ago)         36d
+dev-spark                                          ops-operationsservice-647d745655-4tglt                            2/2     Running                       0                   41d
+devops-admin                                       telnet-server-6ddc69dbdf-2q7d4                                    1/1     Running                       0                   13d
+dynatrace                                          dynatrace-oneagent-csi-driver-2vfb4                               4/4     Running                       1 (85d ago)         129d
+dynatrace                                          dynatrace-oneagent-csi-driver-5pklk                               4/4     Running                       16                  188d
+dynatrace                                          dynatrace-oneagent-csi-driver-62mn8                               4/4     Running                       13 (24d ago)        188d
+dynatrace                                          dynatrace-oneagent-csi-driver-7kmms                               4/4     Running                       12102 (5d11h ago)   70d
+dynatrace                                          dynatrace-oneagent-csi-driver-8hwbj                               4/4     Running                       5100                154d
+dynatrace                                          dynatrace-oneagent-csi-driver-8wktl                               4/4     Running                       45203 (6d11h ago)   188d
+dynatrace                                          dynatrace-oneagent-csi-driver-bdrj9                               4/4     Running                       13 (2d17h ago)      188d
+dynatrace                                          dynatrace-oneagent-csi-driver-dlhcc                               4/4     Running                       4                   188d
+dynatrace                                          dynatrace-oneagent-csi-driver-gcp7l                               4/4     Running                       13 (3d6h ago)       188d
+dynatrace                                          dynatrace-oneagent-csi-driver-kfkg6                               4/4     Running                       9 (8d ago)          188d
+dynatrace                                          dynatrace-oneagent-csi-driver-lwh2h                               4/4     Running                       36343 (8s ago)      154d
+dynatrace                                          dynatrace-oneagent-csi-driver-mv6j9                               4/4     Running                       30977 (6m21s ago)   188d
+dynatrace                                          dynatrace-oneagent-csi-driver-nntxw                               4/4     Running                       8                   188d
+dynatrace                                          dynatrace-oneagent-csi-driver-nzk5c                               4/4     Running                       5                   69d
+dynatrace                                          dynatrace-oneagent-csi-driver-t6k8x                               4/4     Running                       10 (2d5h ago)       69d
+dynatrace                                          dynatrace-oneagent-csi-driver-wnzc2                               4/4     Running                       0                   188d
+dynatrace                                          dynatrace-oneagent-csi-driver-z89hm                               4/4     Running                       5 (92d ago)         188d
+dynatrace                                          dynatrace-oneagent-csi-driver-zjwzq                               4/4     Running                       11 (2d17h ago)      188d
+dynatrace                                          dynatrace-operator-7555f4c95c-4mdct                               1/1     Running                       21 (7d6h ago)       175d
+dynatrace                                          epayuat-activegate-0                                              1/1     Running                       0                   2d16h
+dynatrace                                          epayuat-oneagent-4ggzk                                            1/1     Running                       0                   69d
+dynatrace                                          epayuat-oneagent-5ck9w                                            1/1     Running                       3                   147d
+dynatrace                                          epayuat-oneagent-6pb9s                                            1/1     Running                       1 (124d ago)        147d
+dynatrace                                          epayuat-oneagent-9j5zk                                            1/1     Running                       2                   147d
+dynatrace                                          epayuat-oneagent-cj64l                                            1/1     Running                       1 (124d ago)        147d
+dynatrace                                          epayuat-oneagent-cjn2b                                            1/1     Running                       1 (124d ago)        147d
+dynatrace                                          epayuat-oneagent-dnlqw                                            1/1     Running                       1 (124d ago)        147d
+dynatrace                                          epayuat-oneagent-f68gj                                            1/1     Running                       1 (124d ago)        147d
+dynatrace                                          epayuat-oneagent-fkg4c                                            1/1     Running                       1 (124d ago)        147d
+dynatrace                                          epayuat-oneagent-l7k77                                            1/1     Running                       1 (124d ago)        129d
+dynatrace                                          epayuat-oneagent-lqxcm                                            1/1     Running                       1 (124d ago)        147d
+dynatrace                                          epayuat-oneagent-r7cxh                                            1/1     Running                       2                   147d
+dynatrace                                          epayuat-oneagent-rbjfm                                            1/1     Running                       1 (124d ago)        147d
+dynatrace                                          epayuat-oneagent-sm4j2                                            1/1     Running                       1                   69d
+dynatrace                                          epayuat-oneagent-svtpb                                            1/1     Running                       3                   147d
+dynatrace                                          epayuat-oneagent-tsgf8                                            1/1     Running                       1 (124d ago)        147d
+dynatrace                                          epayuat-oneagent-vrjsl                                            1/1     Running                       1 (124d ago)        147d
+dynatrace                                          epayuat-oneagent-wtmr6                                            1/1     Running                       1                   70d
+int-epay-common                                    gemfire-uat-locator-0                                             0/1     Init:0/1                      0                   56d
+int-istio-system                                   int-istio-gateway-77d47dbb5-gj4dx                                 1/1     Running                       0                   8d
+int-istio-system                                   int-istio-gateway-77d47dbb5-p6grx                                 1/1     Running                       0                   6d17h
+int-istio-system                                   istiod-int-istio-77f4b4d65c-b5fj5                                 1/1     Running                       0                   8d
+int-kafka                                          int-console-console-deployment-7cb56ccb54-p6qx5                   2/2     Running                       0                   6d20h
+int-kafka                                          int-kafka-cluster-broker-0                                        1/1     Running                       0                   6d20h
+int-kafka                                          int-kafka-cluster-broker-1                                        1/1     Running                       0                   6d19h
+int-kafka                                          int-kafka-cluster-broker-2                                        1/1     Running                       0                   6d19h
+int-kafka                                          int-kafka-cluster-controller-3                                    1/1     Running                       0                   6d19h
+int-kafka                                          int-kafka-cluster-controller-4                                    1/1     Running                       0                   6d19h
+int-kafka                                          int-kafka-cluster-controller-5                                    1/1     Running                       0                   6d19h
+int-kafka                                          int-kafka-cluster-cruise-control-f59f85998-lqvn2                  1/1     Running                       3 (15h ago)         6d20h
+int-kafka                                          int-kafka-cluster-entity-operator-5755d46bc6-qz6vp                2/2     Running                       0                   6d20h
+int-kafka                                          int-kafka-mirror-maker-mirrormaker2-0                             0/1     Pending                       0                   6d20h
+istio-cni                                          istio-cni-node-2mfmc                                              1/1     Running                       0                   7d22h
+istio-cni                                          istio-cni-node-5p9c2                                              1/1     Running                       0                   7d22h
+istio-cni                                          istio-cni-node-7khhc                                              1/1     Running                       0                   7d22h
+istio-cni                                          istio-cni-node-85t5m                                              1/1     Running                       0                   7d22h
+istio-cni                                          istio-cni-node-c85zt                                              1/1     Running                       0                   7d22h
+istio-cni                                          istio-cni-node-dqbv4                                              1/1     Running                       0                   7d22h
+istio-cni                                          istio-cni-node-dskwt                                              1/1     Running                       0                   7d22h
+istio-cni                                          istio-cni-node-fkcq5                                              1/1     Running                       0                   7d22h
+istio-cni                                          istio-cni-node-gh8mt                                              1/1     Running                       0                   7d22h
+istio-cni                                          istio-cni-node-gnm2t                                              1/1     Running                       0                   7d22h
+istio-cni                                          istio-cni-node-jtz2l                                              1/1     Running                       0                   7d22h
+istio-cni                                          istio-cni-node-pmm5b                                              1/1     Running                       0                   7d22h
+istio-cni                                          istio-cni-node-qhrkj                                              1/1     Running                       0                   7d22h
+istio-cni                                          istio-cni-node-r6d5n                                              1/1     Running                       0                   7d22h
+istio-cni                                          istio-cni-node-rll6l                                              1/1     Running                       0                   7d22h
+istio-cni                                          istio-cni-node-rv5qt                                              1/1     Running                       0                   7d22h
+istio-cni                                          istio-cni-node-sl7tv                                              1/1     Running                       0                   7d22h
+istio-cni                                          istio-cni-node-td7c6                                              1/1     Running                       0                   7d22h
+istio-system                                       ossmconsole-56d7d4b4fc-2gvd6                                      1/1     Running                       0                   123d
+openshift-apiserver-operator                       openshift-apiserver-operator-864ff97cf6-m64gw                     1/1     Running                       23 (43d ago)        169d
+openshift-apiserver                                apiserver-6d8b5f9cc6-765j6                                        2/2     Running                       0                   43d
+openshift-apiserver                                apiserver-6d8b5f9cc6-7l4vr                                        2/2     Running                       0                   43d
+openshift-apiserver                                apiserver-6d8b5f9cc6-j4t26                                        2/2     Running                       0                   43d
+openshift-authentication-operator                  authentication-operator-6998764f9d-wcr28                          1/1     Running                       35 (43d ago)        216d
+openshift-authentication                           oauth-openshift-6bcd49f94-hfn2h                                   1/1     Running                       0                   43d
+openshift-authentication                           oauth-openshift-6bcd49f94-k59f5                                   1/1     Running                       0                   43d
+openshift-authentication                           oauth-openshift-6bcd49f94-wtd5x                                   1/1     Running                       0                   43d
+openshift-cloud-controller-manager-operator        cluster-cloud-controller-manager-operator-8d75d9f69-96t76         3/3     Running                       48 (86d ago)        216d
+openshift-cloud-controller-manager                 vsphere-cloud-controller-manager-64bfb755b6-2jz6h                 1/1     Running                       1 (124d ago)        169d
+openshift-cloud-controller-manager                 vsphere-cloud-controller-manager-64bfb755b6-8kdnd                 1/1     Running                       27 (86d ago)        182d
+openshift-cloud-credential-operator                cloud-credential-operator-6698f6b9f4-tg88t                        2/2     Running                       1 (86d ago)         169d
+openshift-cluster-csi-drivers                      vmware-vsphere-csi-driver-controller-84fd7ddb68-hjdrb             13/13   Running                       196 (16h ago)       43d
+openshift-cluster-csi-drivers                      vmware-vsphere-csi-driver-controller-84fd7ddb68-jcp2j             13/13   Running                       194 (16h ago)       43d
+openshift-cluster-csi-drivers                      vmware-vsphere-csi-driver-node-2vxh2                              3/3     Running                       5                   70d
+openshift-cluster-csi-drivers                      vmware-vsphere-csi-driver-node-55588                              3/3     Running                       8 (209d ago)        226d
+openshift-cluster-csi-drivers                      vmware-vsphere-csi-driver-node-5hp95                              3/3     Running                       5                   69d
+openshift-cluster-csi-drivers                      vmware-vsphere-csi-driver-node-6pjst                              3/3     Running                       17 (169d ago)       226d
+openshift-cluster-csi-drivers                      vmware-vsphere-csi-driver-node-747sj                              3/3     Running                       13 (169d ago)       226d
+openshift-cluster-csi-drivers                      vmware-vsphere-csi-driver-node-88l4p                              3/3     Running                       7 (121d ago)        226d
+openshift-cluster-csi-drivers                      vmware-vsphere-csi-driver-node-bbzn9                              3/3     Running                       24 (121d ago)       226d
+openshift-cluster-csi-drivers                      vmware-vsphere-csi-driver-node-crvm9                              3/3     Running                       6                   226d
+openshift-cluster-csi-drivers                      vmware-vsphere-csi-driver-node-cs6ls                              3/3     Running                       7 (185d ago)        226d
+openshift-cluster-csi-drivers                      vmware-vsphere-csi-driver-node-h4792                              3/3     Running                       3                   226d
+openshift-cluster-csi-drivers                      vmware-vsphere-csi-driver-node-h8rpk                              3/3     Running                       2 (69d ago)         69d
+openshift-cluster-csi-drivers                      vmware-vsphere-csi-driver-node-jww4d                              3/3     Running                       12 (70d ago)        226d
+openshift-cluster-csi-drivers                      vmware-vsphere-csi-driver-node-kdvhx                              3/3     Running                       16 (121d ago)       226d
+openshift-cluster-csi-drivers                      vmware-vsphere-csi-driver-node-qtxrp                              3/3     Running                       11                  226d
+openshift-cluster-csi-drivers                      vmware-vsphere-csi-driver-node-s6pb4                              3/3     Running                       13 (169d ago)       226d
+openshift-cluster-csi-drivers                      vmware-vsphere-csi-driver-node-t5vj4                              3/3     Running                       16 (169d ago)       226d
+openshift-cluster-csi-drivers                      vmware-vsphere-csi-driver-node-thc94                              3/3     Running                       8 (123d ago)        226d
+openshift-cluster-csi-drivers                      vmware-vsphere-csi-driver-node-vsjdc                              3/3     Running                       9 (178d ago)        226d
+openshift-cluster-csi-drivers                      vmware-vsphere-csi-driver-operator-599547659f-m4bbd               1/1     Running                       23 (43d ago)        169d
+openshift-cluster-csi-drivers                      vmware-vsphere-csi-driver-webhook-79cd698f98-dd7b8                1/1     Running                       0                   43d
+openshift-cluster-csi-drivers                      vmware-vsphere-csi-driver-webhook-79cd698f98-z2h65                1/1     Running                       0                   43d
+openshift-cluster-machine-approver                 machine-approver-79d75f7465-j78sr                                 2/2     Running                       7 (86d ago)         216d
+openshift-cluster-node-tuning-operator             cluster-node-tuning-operator-66f6586ddf-hkzh2                     1/1     Running                       23 (86d ago)        169d
+openshift-cluster-node-tuning-operator             tuned-5wgfm                                                       1/1     Running                       3                   226d
+openshift-cluster-node-tuning-operator             tuned-7l99r                                                       1/1     Running                       2                   226d
+openshift-cluster-node-tuning-operator             tuned-9xjf5                                                       1/1     Running                       2                   226d
+openshift-cluster-node-tuning-operator             tuned-bf8nq                                                       1/1     Running                       2                   226d
+openshift-cluster-node-tuning-operator             tuned-bnhln                                                       1/1     Running                       3                   226d
+openshift-cluster-node-tuning-operator             tuned-fd986                                                       1/1     Running                       2                   226d
+openshift-cluster-node-tuning-operator             tuned-g4cv4                                                       1/1     Running                       2                   226d
+openshift-cluster-node-tuning-operator             tuned-hx87v                                                       1/1     Running                       2                   226d
+openshift-cluster-node-tuning-operator             tuned-j4h42                                                       1/1     Running                       6                   226d
+openshift-cluster-node-tuning-operator             tuned-jnmp9                                                       1/1     Running                       3                   226d
+openshift-cluster-node-tuning-operator             tuned-l24g6                                                       1/1     Running                       4                   226d
+openshift-cluster-node-tuning-operator             tuned-m6d22                                                       1/1     Running                       3                   226d
+openshift-cluster-node-tuning-operator             tuned-mwwx2                                                       1/1     Running                       1                   70d
+openshift-cluster-node-tuning-operator             tuned-q5m7x                                                       1/1     Running                       0                   69d
+openshift-cluster-node-tuning-operator             tuned-qpxvc                                                       1/1     Running                       1                   226d
+openshift-cluster-node-tuning-operator             tuned-tshkq                                                       1/1     Running                       2                   226d
+openshift-cluster-node-tuning-operator             tuned-tvpwd                                                       1/1     Running                       3                   226d
+openshift-cluster-node-tuning-operator             tuned-tvrlk                                                       1/1     Running                       1                   69d
+openshift-cluster-observability-operator           logging-5fccfcbddb-ps6cq                                          1/1     Running                       0                   6d23h
+openshift-cluster-observability-operator           obo-prometheus-operator-86c8599b76-x9w8n                          1/1     Running                       0                   2d17h
+openshift-cluster-observability-operator           obo-prometheus-operator-admission-webhook-544d698f5b-8bqdk        1/1     Running                       0                   16d
+openshift-cluster-observability-operator           obo-prometheus-operator-admission-webhook-544d698f5b-mdg76        1/1     Running                       0                   2d17h
+openshift-cluster-observability-operator           observability-operator-54c89d9c7-ttrw4                            1/1     Running                       0                   2d17h
+openshift-cluster-observability-operator           perses-operator-75cf86d76b-mpzw5                                  1/1     Running                       0                   2d17h
+openshift-cluster-samples-operator                 cluster-samples-operator-5bb985cc6d-2fffg                         2/2     Running                       1 (43d ago)         169d
+openshift-cluster-storage-operator                 cluster-storage-operator-7757d7cf57-p2wlp                         1/1     Running                       27 (43d ago)        216d
+openshift-cluster-storage-operator                 csi-snapshot-controller-7558c87b98-68g79                          1/1     Running                       4 (124d ago)        216d
+openshift-cluster-storage-operator                 csi-snapshot-controller-7558c87b98-s7wcc                          1/1     Running                       21 (86d ago)        169d
+openshift-cluster-storage-operator                 csi-snapshot-controller-operator-c74468899-hqlc8                  1/1     Running                       23 (86d ago)        169d
+openshift-cluster-storage-operator                 csi-snapshot-webhook-7bc6c6cc5d-bnxt4                             1/1     Running                       0                   43d
+openshift-cluster-storage-operator                 csi-snapshot-webhook-7bc6c6cc5d-qsnnh                             1/1     Running                       0                   43d
+openshift-cluster-storage-operator                 vsphere-problem-detector-operator-6f6cd57cc4-2jj8f                1/1     Running                       1 (22d ago)         43d
+openshift-cluster-version                          cluster-version-operator-8ffbbb6cb-wb47v                          1/1     Running                       8 (86d ago)         216d
+openshift-config-operator                          openshift-config-operator-647c4dc46b-ph4gr                        1/1     Running                       45 (43d ago)        169d
+openshift-console-operator                         console-conversion-webhook-844f8b7846-lxqnl                       1/1     Running                       1                   216d
+openshift-console-operator                         console-operator-67d7b6956c-t6vm7                                 1/1     Running                       45 (43d ago)        216d
+openshift-console                                  console-7dd5bcc77-ktx5r                                           1/1     Running                       0                   6d23h
+openshift-console                                  console-7dd5bcc77-tgntn                                           1/1     Running                       0                   6d23h
+openshift-console                                  downloads-6bbfff598-56ckw                                         1/1     Running                       1                   216d
+openshift-console                                  downloads-6bbfff598-8rwm5                                         1/1     Running                       0                   169d
+openshift-controller-manager-operator              openshift-controller-manager-operator-66d6b99646-4vzqb            1/1     Running                       24 (43d ago)        169d
+openshift-controller-manager                       controller-manager-75c86f5fff-pgxdf                               1/1     Running                       0                   39h
+openshift-controller-manager                       controller-manager-75c86f5fff-qsrkd                               1/1     Running                       0                   39h
+openshift-controller-manager                       controller-manager-75c86f5fff-vkbc6                               1/1     Running                       0                   39h
+openshift-debug-t8q42                              worker2devsbiepaysbi-debug-4qgjs                                  0/1     Error                         0                   98d
+openshift-distributed-tracing                      jaeger-operator-6fd5964f47-krjlp                                  2/2     Running                       0                   15d
+openshift-dns-operator                             dns-operator-7bdf55d94c-7z44b                                     2/2     Running                       0                   169d
+openshift-dns                                      dns-default-5bn4s                                                 2/2     Running                       4                   226d
+openshift-dns                                      dns-default-5j8dt                                                 2/2     Running                       2                   69d
+openshift-dns                                      dns-default-5kpt4                                                 2/2     Running                       12                  226d
+openshift-dns                                      dns-default-86kp5                                                 2/2     Running                       4                   226d
+openshift-dns                                      dns-default-9mdt8                                                 2/2     Running                       8                   226d
+openshift-dns                                      dns-default-cjwnq                                                 2/2     Running                       4                   226d
+openshift-dns                                      dns-default-csvnx                                                 2/2     Running                       0                   69d
+openshift-dns                                      dns-default-htmvd                                                 2/2     Running                       6                   226d
+openshift-dns                                      dns-default-jxxdj                                                 2/2     Running                       2                   70d
+openshift-dns                                      dns-default-n6sqs                                                 2/2     Running                       0                   129d
+openshift-dns                                      dns-default-nbxxd                                                 2/2     Running                       4                   226d
+openshift-dns                                      dns-default-tk6dj                                                 2/2     Running                       2                   226d
+openshift-dns                                      dns-default-wqbwn                                                 2/2     Running                       6                   226d
+openshift-dns                                      dns-default-xhgh6                                                 2/2     Running                       6                   226d
+openshift-dns                                      dns-default-z6pdw                                                 2/2     Running                       6                   226d
+openshift-dns                                      node-resolver-46kcz                                               1/1     Running                       2                   226d
+openshift-dns                                      node-resolver-4wmdl                                               1/1     Running                       2                   226d
+openshift-dns                                      node-resolver-7zvzs                                               1/1     Running                       2                   226d
+openshift-dns                                      node-resolver-bxr6r                                               1/1     Running                       3                   226d
+openshift-dns                                      node-resolver-ctflf                                               1/1     Running                       0                   69d
+openshift-dns                                      node-resolver-cz7rx                                               1/1     Running                       6                   226d
+openshift-dns                                      node-resolver-dnr66                                               1/1     Running                       3                   226d
+openshift-dns                                      node-resolver-fwvh7                                               1/1     Running                       2                   226d
+openshift-dns                                      node-resolver-hwfx8                                               1/1     Running                       3                   226d
+openshift-dns                                      node-resolver-k6rtc                                               1/1     Running                       1                   70d
+openshift-dns                                      node-resolver-mjp7r                                               1/1     Running                       2                   226d
+openshift-dns                                      node-resolver-ncv7d                                               1/1     Running                       3                   226d
+openshift-dns                                      node-resolver-pjj9q                                               1/1     Running                       3                   226d
+openshift-dns                                      node-resolver-q9jc5                                               1/1     Running                       1                   69d
+openshift-dns                                      node-resolver-r7mhm                                               1/1     Running                       4                   226d
+openshift-dns                                      node-resolver-tlqmj                                               1/1     Running                       1                   226d
+openshift-dns                                      node-resolver-v9lrf                                               1/1     Running                       2                   226d
+openshift-dns                                      node-resolver-xrsl2                                               1/1     Running                       2                   226d
+openshift-etcd-operator                            etcd-operator-786bf676bd-p8lbd                                    1/1     Running                       28 (43d ago)        169d
+openshift-etcd                                     etcd-guard-master1.dev.sbiepay.sbi                                1/1     Running                       0                   216d
+openshift-etcd                                     etcd-guard-master2.dev.sbiepay.sbi                                1/1     Running                       1                   216d
+openshift-etcd                                     etcd-guard-master3.dev.sbiepay.sbi                                1/1     Running                       2                   216d
+openshift-etcd                                     etcd-master1.dev.sbiepay.sbi                                      4/4     Running                       4                   226d
+openshift-etcd                                     etcd-master2.dev.sbiepay.sbi                                      4/4     Running                       8                   226d
+openshift-etcd                                     etcd-master3.dev.sbiepay.sbi                                      4/4     Running                       12                  226d
+openshift-etcd                                     revision-pruner-11-master1.dev.sbiepay.sbi                        0/1     Completed                     0                   216d
+openshift-etcd                                     revision-pruner-11-master2.dev.sbiepay.sbi                        0/1     Completed                     0                   216d
+openshift-etcd                                     revision-pruner-11-master3.dev.sbiepay.sbi                        0/1     Completed                     0                   216d
+openshift-image-registry                           cluster-image-registry-operator-84d8fb4ff-4rscz                   1/1     Running                       2 (43d ago)         169d
+openshift-image-registry                           image-registry-7894646fd7-pzt8r                                   1/1     Running                       0                   2d17h
+openshift-image-registry                           node-ca-4fw7r                                                     1/1     Running                       1                   69d
+openshift-image-registry                           node-ca-5f5ks                                                     1/1     Running                       3                   226d
+openshift-image-registry                           node-ca-5hp2t                                                     1/1     Running                       2                   226d
+openshift-image-registry                           node-ca-7j567                                                     1/1     Running                       1                   70d
+openshift-image-registry                           node-ca-7tf2z                                                     1/1     Running                       1                   226d
+openshift-image-registry                           node-ca-9wcqq                                                     1/1     Running                       2                   226d
+openshift-image-registry                           node-ca-f8qpm                                                     1/1     Running                       3                   226d
+openshift-image-registry                           node-ca-fglrp                                                     1/1     Running                       2                   226d
+openshift-image-registry                           node-ca-fp9kf                                                     1/1     Running                       2                   226d
+openshift-image-registry                           node-ca-gzrnz                                                     1/1     Running                       4                   226d
+openshift-image-registry                           node-ca-l2hbj                                                     1/1     Running                       3                   226d
+openshift-image-registry                           node-ca-mcxtd                                                     1/1     Running                       3                   226d
+openshift-image-registry                           node-ca-nvl8m                                                     1/1     Running                       6                   226d
+openshift-image-registry                           node-ca-ptbd5                                                     1/1     Running                       2                   226d
+openshift-image-registry                           node-ca-sfgsb                                                     1/1     Running                       0                   69d
+openshift-image-registry                           node-ca-tk2cr                                                     1/1     Running                       3                   226d
+openshift-image-registry                           node-ca-wpppq                                                     1/1     Running                       2                   226d
+openshift-image-registry                           node-ca-zwqsf                                                     1/1     Running                       2                   226d
+openshift-ingress-canary                           ingress-canary-4m64l                                              1/1     Running                       6                   226d
+openshift-ingress-canary                           ingress-canary-85lwv                                              1/1     Running                       1                   70d
+openshift-ingress-canary                           ingress-canary-fjfdk                                              1/1     Running                       2                   226d
+openshift-ingress-canary                           ingress-canary-fqpc4                                              1/1     Running                       4                   226d
+openshift-ingress-canary                           ingress-canary-kjw6d                                              1/1     Running                       2                   226d
+openshift-ingress-canary                           ingress-canary-kq6c6                                              1/1     Running                       3                   226d
+openshift-ingress-canary                           ingress-canary-nsncc                                              1/1     Running                       0                   69d
+openshift-ingress-canary                           ingress-canary-q9gvz                                              1/1     Running                       0                   129d
+openshift-ingress-canary                           ingress-canary-s2hcg                                              1/1     Running                       2                   226d
+openshift-ingress-canary                           ingress-canary-sh7f5                                              1/1     Running                       2                   226d
+openshift-ingress-canary                           ingress-canary-tkqwb                                              1/1     Running                       3                   226d
+openshift-ingress-canary                           ingress-canary-v4z72                                              1/1     Running                       3                   226d
+openshift-ingress-canary                           ingress-canary-vsljg                                              1/1     Running                       1                   69d
+openshift-ingress-canary                           ingress-canary-vvb6f                                              1/1     Running                       3                   226d
+openshift-ingress-canary                           ingress-canary-x5hwl                                              1/1     Running                       2                   226d
+openshift-ingress-operator                         ingress-operator-b8bdb9868-sp6mc                                  2/2     Running                       0                   169d
+openshift-ingress                                  router-default-5456c489b4-28jbt                                   1/1     Running                       5 (57d ago)         216d
+openshift-ingress                                  router-default-5456c489b4-7gglw                                   1/1     Running                       0                   2d17h
+openshift-ingress                                  router-default-5456c489b4-s4gd7                                   1/1     Running                       1                   216d
+openshift-insights                                 insights-operator-6c964f9fd9-hs5fh                                1/1     Running                       2 (43d ago)         216d
+openshift-kube-apiserver-operator                  kube-apiserver-operator-fb8795fc7-q6x68                           1/1     Running                       28 (43d ago)        216d
+openshift-kube-apiserver                           installer-114-master1.dev.sbiepay.sbi                             0/1     Completed                     0                   16d
+openshift-kube-apiserver                           installer-114-master2.dev.sbiepay.sbi                             0/1     Completed                     0                   16d
+openshift-kube-apiserver                           installer-114-master3.dev.sbiepay.sbi                             0/1     Completed                     0                   16d
+openshift-kube-apiserver                           installer-115-master1.dev.sbiepay.sbi                             0/1     Completed                     0                   6d13h
+openshift-kube-apiserver                           installer-115-master2.dev.sbiepay.sbi                             0/1     Completed                     0                   6d13h
+openshift-kube-apiserver                           installer-115-master3.dev.sbiepay.sbi                             0/1     Completed                     0                   6d13h
+openshift-kube-apiserver                           installer-117-master1.dev.sbiepay.sbi                             0/1     Completed                     0                   39h
+openshift-kube-apiserver                           installer-117-master2.dev.sbiepay.sbi                             0/1     Completed                     0                   39h
+openshift-kube-apiserver                           installer-117-master3.dev.sbiepay.sbi                             0/1     Completed                     0                   39h
+openshift-kube-apiserver                           kube-apiserver-guard-master1.dev.sbiepay.sbi                      1/1     Running                       0                   216d
+openshift-kube-apiserver                           kube-apiserver-guard-master2.dev.sbiepay.sbi                      1/1     Running                       1                   216d
+openshift-kube-apiserver                           kube-apiserver-guard-master3.dev.sbiepay.sbi                      1/1     Running                       2                   216d
+openshift-kube-apiserver                           kube-apiserver-master1.dev.sbiepay.sbi                            5/5     Running                       0                   39h
+openshift-kube-apiserver                           kube-apiserver-master2.dev.sbiepay.sbi                            5/5     Running                       0                   39h
+openshift-kube-apiserver                           kube-apiserver-master3.dev.sbiepay.sbi                            5/5     Running                       0                   39h
+openshift-kube-apiserver                           revision-pruner-113-master1.dev.sbiepay.sbi                       0/1     Completed                     0                   16d
+openshift-kube-apiserver                           revision-pruner-113-master2.dev.sbiepay.sbi                       0/1     Completed                     0                   16d
+openshift-kube-apiserver                           revision-pruner-113-master3.dev.sbiepay.sbi                       0/1     Completed                     0                   16d
+openshift-kube-apiserver                           revision-pruner-114-master1.dev.sbiepay.sbi                       0/1     Completed                     0                   16d
+openshift-kube-apiserver                           revision-pruner-114-master2.dev.sbiepay.sbi                       0/1     Completed                     0                   16d
+openshift-kube-apiserver                           revision-pruner-114-master3.dev.sbiepay.sbi                       0/1     Completed                     0                   16d
+openshift-kube-apiserver                           revision-pruner-115-master1.dev.sbiepay.sbi                       0/1     Completed                     0                   6d13h
+openshift-kube-apiserver                           revision-pruner-115-master2.dev.sbiepay.sbi                       0/1     Completed                     0                   6d13h
+openshift-kube-apiserver                           revision-pruner-115-master3.dev.sbiepay.sbi                       0/1     Completed                     0                   6d13h
+openshift-kube-apiserver                           revision-pruner-116-master1.dev.sbiepay.sbi                       0/1     Completed                     0                   40h
+openshift-kube-apiserver                           revision-pruner-116-master2.dev.sbiepay.sbi                       0/1     Completed                     0                   40h
+openshift-kube-apiserver                           revision-pruner-116-master3.dev.sbiepay.sbi                       0/1     Completed                     0                   40h
+openshift-kube-apiserver                           revision-pruner-117-master1.dev.sbiepay.sbi                       0/1     Completed                     0                   39h
+openshift-kube-apiserver                           revision-pruner-117-master2.dev.sbiepay.sbi                       0/1     Completed                     0                   39h
+openshift-kube-apiserver                           revision-pruner-117-master3.dev.sbiepay.sbi                       0/1     Completed                     0                   39h
+openshift-kube-controller-manager-operator         kube-controller-manager-operator-98f457569-fl5jj                  1/1     Running                       23 (43d ago)        169d
+openshift-kube-controller-manager                  installer-32-master3.dev.sbiepay.sbi                              0/1     Completed                     0                   43d
+openshift-kube-controller-manager                  installer-33-master1.dev.sbiepay.sbi                              0/1     Completed                     0                   43d
+openshift-kube-controller-manager                  installer-33-master3.dev.sbiepay.sbi                              0/1     Completed                     0                   43d
+openshift-kube-controller-manager                  installer-34-master1.dev.sbiepay.sbi                              0/1     Completed                     0                   43d
+openshift-kube-controller-manager                  installer-34-master2.dev.sbiepay.sbi                              0/1     Completed                     0                   43d
+openshift-kube-controller-manager                  installer-34-master3.dev.sbiepay.sbi                              0/1     Completed                     0                   43d
+openshift-kube-controller-manager                  kube-controller-manager-guard-master1.dev.sbiepay.sbi             1/1     Running                       0                   216d
+openshift-kube-controller-manager                  kube-controller-manager-guard-master2.dev.sbiepay.sbi             1/1     Running                       1                   216d
+openshift-kube-controller-manager                  kube-controller-manager-guard-master3.dev.sbiepay.sbi             1/1     Running                       2                   216d
+openshift-kube-controller-manager                  kube-controller-manager-master1.dev.sbiepay.sbi                   4/4     Running                       1 (37d ago)         43d
+openshift-kube-controller-manager                  kube-controller-manager-master2.dev.sbiepay.sbi                   4/4     Running                       3 (33m ago)         43d
+openshift-kube-controller-manager                  kube-controller-manager-master3.dev.sbiepay.sbi                   4/4     Running                       1 (11d ago)         43d
+openshift-kube-scheduler-operator                  openshift-kube-scheduler-operator-5b6c5db857-4jmbg                1/1     Running                       28 (43d ago)        216d
+openshift-kube-scheduler                           installer-14-master1.dev.sbiepay.sbi                              0/1     Completed                     0                   43d
+openshift-kube-scheduler                           installer-15-master1.dev.sbiepay.sbi                              0/1     Completed                     0                   43d
+openshift-kube-scheduler                           installer-15-master2.dev.sbiepay.sbi                              0/1     Completed                     0                   43d
+openshift-kube-scheduler                           installer-15-master3.dev.sbiepay.sbi                              0/1     Completed                     0                   43d
+openshift-kube-scheduler                           openshift-kube-scheduler-guard-master1.dev.sbiepay.sbi            1/1     Running                       0                   216d
+openshift-kube-scheduler                           openshift-kube-scheduler-guard-master2.dev.sbiepay.sbi            1/1     Running                       1                   216d
+openshift-kube-scheduler                           openshift-kube-scheduler-guard-master3.dev.sbiepay.sbi            1/1     Running                       2                   216d
+openshift-kube-scheduler                           openshift-kube-scheduler-master1.dev.sbiepay.sbi                  3/3     Running                       0                   43d
+openshift-kube-scheduler                           openshift-kube-scheduler-master2.dev.sbiepay.sbi                  3/3     Running                       0                   43d
+openshift-kube-scheduler                           openshift-kube-scheduler-master3.dev.sbiepay.sbi                  3/3     Running                       0                   43d
+openshift-kube-scheduler                           revision-pruner-13-master1.dev.sbiepay.sbi                        0/1     Completed                     0                   216d
+openshift-kube-scheduler                           revision-pruner-13-master2.dev.sbiepay.sbi                        0/1     Completed                     0                   216d
+openshift-kube-scheduler                           revision-pruner-13-master3.dev.sbiepay.sbi                        0/1     Completed                     0                   216d
+openshift-kube-scheduler                           revision-pruner-14-master1.dev.sbiepay.sbi                        0/1     Completed                     0                   43d
+openshift-kube-scheduler                           revision-pruner-14-master2.dev.sbiepay.sbi                        0/1     Completed                     0                   43d
+openshift-kube-scheduler                           revision-pruner-14-master3.dev.sbiepay.sbi                        0/1     Completed                     0                   43d
+openshift-kube-scheduler                           revision-pruner-15-master1.dev.sbiepay.sbi                        0/1     Completed                     0                   43d
+openshift-kube-scheduler                           revision-pruner-15-master2.dev.sbiepay.sbi                        0/1     Completed                     0                   43d
+openshift-kube-scheduler                           revision-pruner-15-master3.dev.sbiepay.sbi                        0/1     Completed                     0                   43d
+openshift-kube-storage-version-migrator-operator   kube-storage-version-migrator-operator-8656f56957-8x6m8           1/1     Running                       23 (43d ago)        169d
+openshift-kube-storage-version-migrator            migrator-55ffdfb98f-t2sth                                         1/1     Running                       0                   169d
+openshift-logging                                  cluster-logging-operator-6b7b9c8c7c-bq7vh                         1/1     Running                       0                   16d
+openshift-logging                                  collector-284gs                                                   1/1     Running                       0                   6d16h
+openshift-logging                                  collector-2xmfb                                                   1/1     Running                       0                   6d16h
+openshift-logging                                  collector-5h27s                                                   1/1     Running                       0                   6d16h
+openshift-logging                                  collector-5p2vt                                                   1/1     Running                       0                   6d16h
+openshift-logging                                  collector-67qb4                                                   1/1     Running                       0                   6d16h
+openshift-logging                                  collector-6bcpz                                                   1/1     Running                       0                   6d16h
+openshift-logging                                  collector-6szb5                                                   1/1     Running                       0                   6d16h
+openshift-logging                                  collector-f9cdp                                                   1/1     Running                       0                   6d16h
+openshift-logging                                  collector-fhsvs                                                   1/1     Running                       0                   6d16h
+openshift-logging                                  collector-hpk5n                                                   1/1     Running                       0                   6d16h
+openshift-logging                                  collector-lmd8d                                                   1/1     Running                       0                   6d16h
+openshift-logging                                  collector-mpb9h                                                   1/1     Running                       0                   6d16h
+openshift-logging                                  collector-n4fsj                                                   1/1     Running                       0                   6d16h
+openshift-logging                                  collector-q556r                                                   1/1     Running                       0                   6d16h
+openshift-logging                                  collector-qzc22                                                   1/1     Running                       0                   6d16h
+openshift-logging                                  collector-s5sxs                                                   1/1     Running                       0                   6d16h
+openshift-logging                                  collector-wp84v                                                   1/1     Running                       0                   6d16h
+openshift-logging                                  collector-wpmv7                                                   1/1     Running                       0                   6d16h
+openshift-logging                                  logging-loki-compactor-0                                          1/1     Running                       0                   8d
+openshift-logging                                  logging-loki-distributor-6fb556bf84-qw8rw                         1/1     Running                       0                   8d
+openshift-logging                                  logging-loki-distributor-6fb556bf84-rz2jw                         1/1     Running                       0                   8d
+openshift-logging                                  logging-loki-gateway-5f987f469c-5r5q7                             2/2     Running                       0                   8d
+openshift-logging                                  logging-loki-gateway-5f987f469c-qc74b                             2/2     Running                       0                   2d17h
+openshift-logging                                  logging-loki-index-gateway-0                                      1/1     Running                       0                   2d16h
+openshift-logging                                  logging-loki-index-gateway-1                                      1/1     Running                       0                   8d
+openshift-logging                                  logging-loki-ingester-0                                           0/1     Running                       0                   2d16h
+openshift-logging                                  logging-loki-ingester-1                                           0/1     Running                       1 (2d17h ago)       8d
+openshift-logging                                  logging-loki-querier-7dfcbdb798-rbkbj                             1/1     Running                       0                   8d
+openshift-logging                                  logging-loki-querier-7dfcbdb798-ww9kb                             1/1     Running                       0                   8d
+openshift-logging                                  logging-loki-query-frontend-6b8cdbc4b7-c75mt                      1/1     Running                       0                   2d17h
+openshift-logging                                  logging-loki-query-frontend-6b8cdbc4b7-tm48m                      1/1     Running                       0                   8d
+openshift-logging                                  logging-loki-ruler-0                                              1/1     Running                       0                   8d
+openshift-logging                                  logging-loki-ruler-1                                              1/1     Running                       0                   8d
+openshift-logging                                  logging-view-plugin-78548d569c-59rgh                              1/1     Running                       0                   16d
+openshift-machine-api                              cluster-autoscaler-operator-7f578f6fd6-g9xtn                      2/2     Running                       23 (86d ago)        169d
+openshift-machine-api                              cluster-baremetal-operator-6b9db6fd4f-7blwq                       2/2     Running                       25 (86d ago)        216d
+openshift-machine-api                              control-plane-machine-set-operator-6c48cc847d-lh8sw               1/1     Running                       21 (86d ago)        169d
+openshift-machine-api                              machine-api-controllers-669576c57b-n684d                          7/7     Running                       152 (86d ago)       216d
+openshift-machine-api                              machine-api-operator-d84744578-t2cgp                              2/2     Running                       6 (86d ago)         216d
+openshift-machine-config-operator                  kube-rbac-proxy-crio-infra1.dev.sbiepay.sbi                       1/1     Running                       3                   226d
+openshift-machine-config-operator                  kube-rbac-proxy-crio-infra2.dev.sbiepay.sbi                       1/1     Running                       2                   226d
+openshift-machine-config-operator                  kube-rbac-proxy-crio-infra3.dev.sbiepay.sbi                       1/1     Running                       2                   226d
+openshift-machine-config-operator                  kube-rbac-proxy-crio-master1.dev.sbiepay.sbi                      1/1     Running                       1                   226d
+openshift-machine-config-operator                  kube-rbac-proxy-crio-master2.dev.sbiepay.sbi                      1/1     Running                       2                   226d
+openshift-machine-config-operator                  kube-rbac-proxy-crio-master3.dev.sbiepay.sbi                      1/1     Running                       3                   226d
+openshift-machine-config-operator                  kube-rbac-proxy-crio-worker1.dev.sbiepay.sbi                      1/1     Running                       2                   226d
+openshift-machine-config-operator                  kube-rbac-proxy-crio-worker1.integ.epay.sbi                       1/1     Running                       7 (69d ago)         69d
+openshift-machine-config-operator                  kube-rbac-proxy-crio-worker1.sit.epay.sbi                         1/1     Running                       2                   226d
+openshift-machine-config-operator                  kube-rbac-proxy-crio-worker1.uat.epay.sbi                         1/1     Running                       2                   226d
+openshift-machine-config-operator                  kube-rbac-proxy-crio-worker2.dev.sbiepay.sbi                      1/1     Running                       3                   226d
+openshift-machine-config-operator                  kube-rbac-proxy-crio-worker2.integ.epay.sbi                       1/1     Running                       3                   70d
+openshift-machine-config-operator                  kube-rbac-proxy-crio-worker2.sit.epay.sbi                         1/1     Running                       3                   226d
+openshift-machine-config-operator                  kube-rbac-proxy-crio-worker2.uat.epay.sbi                         1/1     Running                       4                   226d
+openshift-machine-config-operator                  kube-rbac-proxy-crio-worker3.dev.sbiepay.sbi                      1/1     Running                       3                   226d
+openshift-machine-config-operator                  kube-rbac-proxy-crio-worker3.integ.epay.sbi                       1/1     Running                       6                   69d
+openshift-machine-config-operator                  kube-rbac-proxy-crio-worker3.sit.epay.sbi                         1/1     Running                       2                   226d
+openshift-machine-config-operator                  kube-rbac-proxy-crio-worker3.uat.epay.sbi                         1/1     Running                       6                   226d
+openshift-machine-config-operator                  machine-config-controller-ffc999cd4-zxxqf                         2/2     Running                       1 (86d ago)         169d
+openshift-machine-config-operator                  machine-config-daemon-2bcgm                                       2/2     Running                       39 (169d ago)       226d
+openshift-machine-config-operator                  machine-config-daemon-2zfpn                                       2/2     Running                       0                   69d
+openshift-machine-config-operator                  machine-config-daemon-4h54z                                       2/2     Running                       4                   226d
+openshift-machine-config-operator                  machine-config-daemon-5sl8g                                       2/2     Running                       6                   226d
+openshift-machine-config-operator                  machine-config-daemon-7mx68                                       2/2     Running                       2                   226d
+openshift-machine-config-operator                  machine-config-daemon-9gwtb                                       2/2     Running                       6 (71d ago)         226d
+openshift-machine-config-operator                  machine-config-daemon-9j4wl                                       2/2     Running                       2                   70d
+openshift-machine-config-operator                  machine-config-daemon-bnx9r                                       2/2     Running                       4                   226d
+openshift-machine-config-operator                  machine-config-daemon-c55wp                                       2/2     Running                       21                  226d
+openshift-machine-config-operator                  machine-config-daemon-dfc4d                                       2/2     Running                       6                   226d
+openshift-machine-config-operator                  machine-config-daemon-hrnch                                       2/2     Running                       4                   226d
+openshift-machine-config-operator                  machine-config-daemon-kbq6m                                       2/2     Running                       6                   226d
+openshift-machine-config-operator                  machine-config-daemon-lkq5g                                       2/2     Running                       4                   226d
+openshift-machine-config-operator                  machine-config-daemon-mv4zw                                       2/2     Running                       4                   226d
+openshift-machine-config-operator                  machine-config-daemon-nh4cx                                       2/2     Running                       8                   226d
+openshift-machine-config-operator                  machine-config-daemon-nwjh5                                       2/2     Running                       14 (209d ago)       226d
+openshift-machine-config-operator                  machine-config-daemon-wwwfz                                       2/2     Running                       6                   226d
+openshift-machine-config-operator                  machine-config-daemon-zbl99                                       2/2     Running                       2                   69d
+openshift-machine-config-operator                  machine-config-operator-8696f99c6b-2djjn                          2/2     Running                       3 (86d ago)         169d
+openshift-machine-config-operator                  machine-config-server-lzcz5                                       1/1     Running                       1                   226d
+openshift-machine-config-operator                  machine-config-server-rgn5j                                       1/1     Running                       2                   226d
+openshift-machine-config-operator                  machine-config-server-srk8h                                       1/1     Running                       3                   226d
+openshift-marketplace                              0268d4795501ae403ef08e3d3e90a836cef9b4fa5d0e0b2fa3919c1766977n4   0/1     Completed                     0                   16d
+openshift-marketplace                              05dc10e62c8b175714b7c277904d6f8cb998097214429d302caf6600b4p9t2c   0/1     Completed                     0                   16d
+openshift-marketplace                              3e00527861958ce688ded397a511a1fb074fd6bda2c42dc5b0126580b9x8vpp   0/1     Completed                     0                   16d
+openshift-marketplace                              5d9d4abe371fcee18a4ca7bad736859e2122b048ea20f04acc533e2c12g72j5   0/1     Completed                     0                   13d
+openshift-marketplace                              6365c3b58511c8690f7e6eff3d42a689daf9bfc5cf4a9dbf2334d36536lgddf   0/1     Completed                     0                   13d
+openshift-marketplace                              cs-redhat-operator-index-s4jfs                                    1/1     Running                       0                   16d
+openshift-marketplace                              cs-redhat-operator-index-v416-mz88l                               1/1     Running                       0                   17d
+openshift-marketplace                              d596fad394d6c84156b0a28794e867ea244b4ebd7238a680cc65420134fxjcn   0/1     Completed                     0                   16d
+openshift-marketplace                              marketplace-operator-556d48f648-jfzlt                             1/1     Running                       0                   17d
+openshift-monitoring                               alertmanager-main-0                                               6/6     Running                       0                   2d16h
+openshift-monitoring                               alertmanager-main-1                                               6/6     Running                       0                   173d
+openshift-monitoring                               cluster-monitoring-operator-8db8bfd8b-qk6mc                       1/1     Running                       1                   216d
+openshift-monitoring                               kube-state-metrics-5c496b744d-9wdgt                               3/3     Running                       0                   169d
+openshift-monitoring                               metrics-server-5cb7f7d858-jqh65                                   1/1     Running                       0                   39h
+openshift-monitoring                               metrics-server-5cb7f7d858-m9qrz                                   1/1     Running                       0                   39h
+openshift-monitoring                               monitoring-plugin-6cd986c79c-ffj9x                                1/1     Running                       0                   43d
+openshift-monitoring                               monitoring-plugin-6cd986c79c-q569b                                1/1     Running                       0                   43d
+openshift-monitoring                               node-exporter-26l84                                               2/2     Running                       2                   226d
+openshift-monitoring                               node-exporter-27nxs                                               2/2     Running                       12                  226d
+openshift-monitoring                               node-exporter-2s4kn                                               2/2     Running                       4                   226d
+openshift-monitoring                               node-exporter-4rq6g                                               2/2     Running                       6                   226d
+openshift-monitoring                               node-exporter-5tqlj                                               2/2     Running                       8                   226d
+openshift-monitoring                               node-exporter-9m24z                                               2/2     Running                       2                   70d
+openshift-monitoring                               node-exporter-fswdw                                               2/2     Running                       4                   226d
+openshift-monitoring                               node-exporter-ft7ms                                               2/2     Running                       0                   69d
+openshift-monitoring                               node-exporter-ggzkp                                               2/2     Running                       6                   226d
+openshift-monitoring                               node-exporter-hm699                                               2/2     Running                       6                   226d
+openshift-monitoring                               node-exporter-kcfrr                                               2/2     Running                       4                   226d
+openshift-monitoring                               node-exporter-ngx8x                                               2/2     Running                       4                   226d
+openshift-monitoring                               node-exporter-nzv9q                                               2/2     Running                       4                   226d
+openshift-monitoring                               node-exporter-s9m2x                                               2/2     Running                       4                   226d
+openshift-monitoring                               node-exporter-tp52v                                               2/2     Running                       4                   226d
+openshift-monitoring                               node-exporter-wlwdn                                               2/2     Running                       6                   226d
+openshift-monitoring                               node-exporter-xhwpp                                               2/2     Running                       6                   226d
+openshift-monitoring                               node-exporter-zvpvg                                               2/2     Running                       2                   69d
+openshift-monitoring                               openshift-state-metrics-b75d76d69-gkzgw                           3/3     Running                       0                   2d16h
+openshift-monitoring                               prometheus-k8s-0                                                  6/6     Running                       57 (96m ago)        170d
+openshift-monitoring                               prometheus-k8s-1                                                  6/6     Running                       0                   2d16h
+openshift-monitoring                               prometheus-operator-6bdbb49d58-2jbfk                              2/2     Running                       0                   169d
+openshift-monitoring                               prometheus-operator-admission-webhook-6cf4fc57f4-hn6qx            1/1     Running                       7 (57d ago)         169d
+openshift-monitoring                               prometheus-operator-admission-webhook-6cf4fc57f4-ljjpv            1/1     Running                       1                   216d
+openshift-monitoring                               thanos-querier-65b9f6564-8pg5l                                    6/6     Running                       6                   216d
+openshift-monitoring                               thanos-querier-65b9f6564-z8nf5                                    6/6     Running                       9 (66d ago)         169d
+openshift-multus                                   multus-54479                                                      1/1     Running                       3                   226d
+openshift-multus                                   multus-5m24q                                                      1/1     Running                       3                   226d
+openshift-multus                                   multus-9qmhh                                                      1/1     Running                       1                   70d
+openshift-multus                                   multus-additional-cni-plugins-2fz96                               1/1     Running                       2                   226d
+openshift-multus                                   multus-additional-cni-plugins-7zfqv                               1/1     Running                       2                   226d
+openshift-multus                                   multus-additional-cni-plugins-84cw7                               1/1     Running                       2                   226d
+openshift-multus                                   multus-additional-cni-plugins-8f7nl                               1/1     Running                       2                   226d
+openshift-multus                                   multus-additional-cni-plugins-8vglt                               1/1     Running                       3                   226d
+openshift-multus                                   multus-additional-cni-plugins-dzkp2                               1/1     Running                       0                   69d
+openshift-multus                                   multus-additional-cni-plugins-fqpls                               1/1     Running                       6                   226d
+openshift-multus                                   multus-additional-cni-plugins-g8sn5                               1/1     Running                       3                   226d
+openshift-multus                                   multus-additional-cni-plugins-j79f5                               1/1     Running                       4                   226d
+openshift-multus                                   multus-additional-cni-plugins-jkzz4                               1/1     Running                       1                   69d
+openshift-multus                                   multus-additional-cni-plugins-mc8ff                               1/1     Running                       1                   70d
+openshift-multus                                   multus-additional-cni-plugins-ncmn5                               1/1     Running                       3                   226d
+openshift-multus                                   multus-additional-cni-plugins-nqjqt                               1/1     Running                       2                   226d
+openshift-multus                                   multus-additional-cni-plugins-pqqsk                               1/1     Running                       2                   226d
+openshift-multus                                   multus-additional-cni-plugins-q82j9                               1/1     Running                       2                   226d
+openshift-multus                                   multus-additional-cni-plugins-r46vd                               1/1     Running                       3                   226d
+openshift-multus                                   multus-additional-cni-plugins-rmvjg                               1/1     Running                       1                   226d
+openshift-multus                                   multus-additional-cni-plugins-scvl7                               1/1     Running                       3                   226d
+openshift-multus                                   multus-admission-controller-76c7f856bc-nc7vp                      2/2     Running                       0                   169d
+openshift-multus                                   multus-admission-controller-76c7f856bc-rbw52                      2/2     Running                       2                   216d
+openshift-multus                                   multus-b5fvl                                                      1/1     Running                       2                   226d
+openshift-multus                                   multus-gvfm5                                                      1/1     Running                       5 (169d ago)        226d
+openshift-multus                                   multus-gzzq4                                                      1/1     Running                       5 (169d ago)        226d
+openshift-multus                                   multus-j42z7                                                      1/1     Running                       3                   226d
+openshift-multus                                   multus-j7lnd                                                      1/1     Running                       0                   69d
+openshift-multus                                   multus-kvvqn                                                      1/1     Running                       4                   226d
+openshift-multus                                   multus-lb2kw                                                      1/1     Running                       3                   226d
+openshift-multus                                   multus-mr7mz                                                      1/1     Running                       3                   226d
+openshift-multus                                   multus-nw9wk                                                      1/1     Running                       3                   226d
+openshift-multus                                   multus-qb5pl                                                      1/1     Running                       4                   226d
+openshift-multus                                   multus-qq4kh                                                      1/1     Running                       3                   226d
+openshift-multus                                   multus-qs6kb                                                      1/1     Running                       3                   226d
+openshift-multus                                   multus-tlzt2                                                      1/1     Running                       5                   226d
+openshift-multus                                   multus-v9jrk                                                      1/1     Running                       1                   69d
+openshift-multus                                   multus-w5wbm                                                      1/1     Running                       7                   226d
+openshift-multus                                   network-metrics-daemon-4sgw8                                      2/2     Running                       4                   226d
+openshift-multus                                   network-metrics-daemon-6c7dv                                      2/2     Running                       6                   226d
+openshift-multus                                   network-metrics-daemon-742fq                                      2/2     Running                       2                   226d
+openshift-multus                                   network-metrics-daemon-8ml6l                                      2/2     Running                       6                   226d
+openshift-multus                                   network-metrics-daemon-chnnl                                      2/2     Running                       12                  226d
+openshift-multus                                   network-metrics-daemon-czsbf                                      2/2     Running                       4                   226d
+openshift-multus                                   network-metrics-daemon-ddktr                                      2/2     Running                       6                   226d
+openshift-multus                                   network-metrics-daemon-gt459                                      2/2     Running                       4                   226d
+openshift-multus                                   network-metrics-daemon-hrkcl                                      2/2     Running                       8                   226d
+openshift-multus                                   network-metrics-daemon-ksxpd                                      2/2     Running                       2                   70d
+openshift-multus                                   network-metrics-daemon-m4z9w                                      2/2     Running                       4                   226d
+openshift-multus                                   network-metrics-daemon-qh5ph                                      2/2     Running                       4                   226d
+openshift-multus                                   network-metrics-daemon-r866g                                      2/2     Running                       4                   226d
+openshift-multus                                   network-metrics-daemon-rmjbn                                      2/2     Running                       6                   226d
+openshift-multus                                   network-metrics-daemon-scwsv                                      2/2     Running                       2                   69d
+openshift-multus                                   network-metrics-daemon-tjxrs                                      2/2     Running                       6                   226d
+openshift-multus                                   network-metrics-daemon-tl2l5                                      2/2     Running                       0                   69d
+openshift-multus                                   network-metrics-daemon-tmk6v                                      2/2     Running                       4                   226d
+openshift-must-gather-28xw6                        must-gather-m9cd6                                                 1/2     NotReady                      0                   63d
+openshift-must-gather-6wwv2                        must-gather-njtlg                                                 1/2     NotReady                      0                   108d
+openshift-must-gather-ctn2d                        must-gather-hhzgs                                                 1/2     NotReady                      0                   176d
+openshift-must-gather-cz6zg                        must-gather-r8lvp                                                 1/2     NotReady                      0                   107d
+openshift-netobserv-operator                       netobserv-controller-manager-55c8b6f85-p9bd7                      1/1     Running                       0                   16d
+openshift-network-diagnostics                      network-check-source-74f5fd7b4b-rzvkn                             1/1     Running                       0                   148d
+openshift-network-diagnostics                      network-check-target-4hjcq                                        1/1     Running                       1                   69d
+openshift-network-diagnostics                      network-check-target-6jm9l                                        1/1     Running                       3                   226d
+openshift-network-diagnostics                      network-check-target-8zk4n                                        1/1     Running                       1                   70d
+openshift-network-diagnostics                      network-check-target-9jqcl                                        1/1     Running                       2                   226d
+openshift-network-diagnostics                      network-check-target-c79f4                                        1/1     Running                       4                   226d
+openshift-network-diagnostics                      network-check-target-dsn72                                        1/1     Running                       1                   226d
+openshift-network-diagnostics                      network-check-target-kj459                                        1/1     Running                       3                   226d
+openshift-network-diagnostics                      network-check-target-l65gt                                        1/1     Running                       6                   226d
+openshift-network-diagnostics                      network-check-target-lm77w                                        1/1     Running                       3                   226d
+openshift-network-diagnostics                      network-check-target-mlxk5                                        1/1     Running                       2                   226d
+openshift-network-diagnostics                      network-check-target-nxbwq                                        1/1     Running                       2                   226d
+openshift-network-diagnostics                      network-check-target-q7cvd                                        1/1     Running                       3                   226d
+openshift-network-diagnostics                      network-check-target-rxqpf                                        1/1     Running                       3                   226d
+openshift-network-diagnostics                      network-check-target-thsv2                                        1/1     Running                       2                   226d
+openshift-network-diagnostics                      network-check-target-wg7v5                                        1/1     Running                       2                   226d
+openshift-network-diagnostics                      network-check-target-wlmp5                                        1/1     Running                       2                   226d
+openshift-network-diagnostics                      network-check-target-wp7rr                                        1/1     Running                       0                   69d
+openshift-network-diagnostics                      network-check-target-x5d8d                                        1/1     Running                       2                   226d
+openshift-network-node-identity                    network-node-identity-b9rjq                                       2/2     Running                       11 (114d ago)       226d
+openshift-network-node-identity                    network-node-identity-ghkbl                                       2/2     Running                       21 (2d13h ago)      226d
+openshift-network-node-identity                    network-node-identity-hk2fl                                       2/2     Running                       18 (78d ago)        226d
+openshift-network-operator                         iptables-alerter-2dkfs                                            1/1     Running                       12 (86d ago)        226d
+openshift-network-operator                         iptables-alerter-428xp                                            1/1     Running                       25 (44d ago)        226d
+openshift-network-operator                         iptables-alerter-4995d                                            1/1     Running                       15 (86d ago)        129d
+openshift-network-operator                         iptables-alerter-5msrg                                            1/1     Running                       1                   69d
+openshift-network-operator                         iptables-alerter-7hs6g                                            1/1     Running                       22 (86d ago)        226d
+openshift-network-operator                         iptables-alerter-bvff7                                            1/1     Running                       23 (55d ago)        226d
+openshift-network-operator                         iptables-alerter-fmsjx                                            1/1     Running                       24 (2d ago)         226d
+openshift-network-operator                         iptables-alerter-hzgsb                                            1/1     Running                       18 (86d ago)        226d
+openshift-network-operator                         iptables-alerter-kdh5l                                            1/1     Running                       1                   70d
+openshift-network-operator                         iptables-alerter-l27q8                                            1/1     Running                       20 (86d ago)        226d
+openshift-network-operator                         iptables-alerter-lqlls                                            1/1     Running                       24 (86d ago)        226d
+openshift-network-operator                         iptables-alerter-w7b9b                                            1/1     Running                       21 (86d ago)        226d
+openshift-network-operator                         iptables-alerter-xth7x                                            1/1     Running                       23 (86d ago)        226d
+openshift-network-operator                         iptables-alerter-zn9lz                                            1/1     Running                       11 (86d ago)        226d
+openshift-network-operator                         iptables-alerter-zp8zc                                            1/1     Running                       0                   69d
+openshift-network-operator                         network-operator-7c4c8dccf5-kfsm7                                 1/1     Running                       33 (43d ago)        216d
+openshift-oauth-apiserver                          apiserver-f55c8bbc9-9tnxg                                         1/1     Running                       31 (86d ago)        216d
+openshift-oauth-apiserver                          apiserver-f55c8bbc9-nzrmt                                         1/1     Running                       28 (86d ago)        216d
+openshift-oauth-apiserver                          apiserver-f55c8bbc9-sf9kb                                         1/1     Running                       28 (86d ago)        169d
+openshift-operator-lifecycle-manager               catalog-operator-6f99c4bc5d-bpqkm                                 1/1     Running                       1                   216d
+openshift-operator-lifecycle-manager               collect-profiles-29393640-njcsv                                   0/1     Completed                     0                   36m
+openshift-operator-lifecycle-manager               collect-profiles-29393655-vgdv7                                   0/1     Completed                     0                   21m
+openshift-operator-lifecycle-manager               collect-profiles-29393670-5qpkw                                   0/1     Completed                     0                   6m56s
+openshift-operator-lifecycle-manager               olm-operator-7c97c78bc5-9j966                                     1/1     Running                       2                   216d
+openshift-operator-lifecycle-manager               package-server-manager-77656ddf48-hd9c2                           2/2     Running                       33 (86d ago)        216d
+openshift-operator-lifecycle-manager               packageserver-777bf484d4-6t7xv                                    1/1     Running                       0                   169d
+openshift-operator-lifecycle-manager               packageserver-777bf484d4-grmpp                                    1/1     Running                       1                   216d
+openshift-operators-redhat                         elasticsearch-operator-7dfc948845-w6wnc                           2/2     Running                       0                   14d
+openshift-operators-redhat                         loki-operator-controller-manager-7478855d57-5jjq6                 2/2     Running                       0                   15d
+openshift-operators                                amq-streams-cluster-operator-v2.9.0-1-5dc57ccf66-dxrss            1/1     Running                       22 (8d ago)         148d
+openshift-operators                                kiali-operator-55997d774f-jlxhz                                   1/1     Running                       0                   169d
+openshift-operators                                servicemesh-operator3-79c5db8957-5jxm8                            1/1     Running                       0                   13d
+openshift-ovn-kubernetes                           ovnkube-control-plane-68f98cdcfb-9nw98                            2/2     Running                       7                   216d
+openshift-ovn-kubernetes                           ovnkube-control-plane-68f98cdcfb-xblb7                            2/2     Running                       7 (86d ago)         216d
+openshift-ovn-kubernetes                           ovnkube-node-5f2rk                                                8/8     Running                       16                  226d
+openshift-ovn-kubernetes                           ovnkube-node-67xzp                                                8/8     Running                       8                   69d
+openshift-ovn-kubernetes                           ovnkube-node-6bjcz                                                8/8     Running                       24                  226d
+openshift-ovn-kubernetes                           ovnkube-node-7vcwp                                                8/8     Running                       24                  226d
+openshift-ovn-kubernetes                           ovnkube-node-9lr96                                                8/8     Running                       0                   69d
+openshift-ovn-kubernetes                           ovnkube-node-9trk6                                                8/8     Running                       24                  226d
+openshift-ovn-kubernetes                           ovnkube-node-cchv2                                                8/8     Running                       17                  226d
+openshift-ovn-kubernetes                           ovnkube-node-csgzb                                                8/8     Running                       24                  226d
+openshift-ovn-kubernetes                           ovnkube-node-dsvck                                                8/8     Running                       8                   70d
+openshift-ovn-kubernetes                           ovnkube-node-ftjg9                                                8/8     Running                       8                   226d
+openshift-ovn-kubernetes                           ovnkube-node-jv579                                                8/8     Running                       16                  226d
+openshift-ovn-kubernetes                           ovnkube-node-mc4bs                                                8/8     Running                       16                  226d
+openshift-ovn-kubernetes                           ovnkube-node-p4xfz                                                8/8     Running                       48                  226d
+openshift-ovn-kubernetes                           ovnkube-node-s9qlr                                                8/8     Running                       32                  226d
+openshift-ovn-kubernetes                           ovnkube-node-v5kpf                                                8/8     Running                       16                  226d
+openshift-ovn-kubernetes                           ovnkube-node-v9zz9                                                8/8     Running                       24                  226d
+openshift-ovn-kubernetes                           ovnkube-node-wqpv7                                                8/8     Running                       16                  226d
+openshift-ovn-kubernetes                           ovnkube-node-zc44s                                                8/8     Running                       16                  226d
+openshift-route-controller-manager                 route-controller-manager-765cf94448-2fszf                         1/1     Running                       0                   39h
+openshift-route-controller-manager                 route-controller-manager-765cf94448-d6vxg                         1/1     Running                       0                   39h
+openshift-route-controller-manager                 route-controller-manager-765cf94448-qlvth                         1/1     Running                       0                   39h
+openshift-service-ca-operator                      service-ca-operator-77ff44f579-lnwk4                              1/1     Running                       22 (43d ago)        169d
+openshift-service-ca                               service-ca-665499459-zqmlr                                        1/1     Running                       0                   43d
+openshift-tempo-operator                           tempo-operator-controller-7d49bd6dd5-qkckc                        1/1     Running                       0                   13d
+openshift-user-workload-monitoring                 prometheus-operator-c8bfbb9dd-xwht5                               2/2     Running                       2                   216d
+openshift-user-workload-monitoring                 prometheus-user-workload-0                                        6/6     Running                       6                   121d
+openshift-user-workload-monitoring                 prometheus-user-workload-1                                        6/6     Running                       0                   123d
+openshift-user-workload-monitoring                 thanos-ruler-user-workload-0                                      4/4     Running                       0                   169d
+openshift-user-workload-monitoring                 thanos-ruler-user-workload-1                                      4/4     Running                       0                   175d
+sit-istio-system                                   istiod-sit-istio-77457fc8b6-dtl45                                 1/1     Running                       0                   7d23h
+sit-istio-system                                   sit-istio-gateway-786776cfff-7m4ln                                1/1     Running                       0                   7d22h
+sit-istio-system                                   sit-istio-gateway-786776cfff-qs2gg                                1/1     Running                       0                   7d22h
+sit-kafka                                          sit-kafka-cluster-broker-0                                        1/1     Running                       0                   8d
+sit-kafka                                          sit-kafka-cluster-broker-1                                        1/1     Running                       0                   8d
+sit-kafka                                          sit-kafka-cluster-broker-2                                        1/1     Running                       0                   8d
+sit-kafka                                          sit-kafka-cluster-controller-3                                    1/1     Running                       0                   8d
+sit-kafka                                          sit-kafka-cluster-controller-4                                    1/1     Running                       0                   8d
+sit-kafka                                          sit-kafka-cluster-controller-5                                    1/1     Running                       0                   8d
+sit-kafka                                          sit-kafka-cluster-cruise-control-647c8dbfc7-qpc7w                 1/1     Running                       3 (6h43m ago)       8d
+sit-kafka                                          sit-kafka-cluster-entity-operator-796d857cd-2lw4n                 2/2     Running                       0                   7d23h
+sit-kafka                                          sit-kafka-mirror-maker-mirrormaker2-0                             0/1     Pending                       0                   8d
+sit-offline-jobs                                   pooling-gatewaypooling-68d9786489-59z8n                           2/2     Running                       0                   8d
+streams-kafka-console                              amq-streams-console-operator-v2.9.0-5-df86875f4-4jtqf             1/1     Running                       52 (86d ago)        175d
+streams-kafka-console                              my-console-console-deployment-7d57bb7bd-zfzjf                     2/2     Running                       0                   175d
+streams-kafka-console                              my-console-prometheus-deployment-5855b6d44c-857hw                 1/1     Running                       0                   168d
+telnet                                             telnet-server-6ddc69dbdf-b8xnw                                    2/2     Running                       0                   8d
+trident                                            trident-controller-868c544b88-fntf2                               6/6     Running                       0                   109d
+trident                                            trident-node-linux-449q5                                          2/2     Running                       5670 (175d ago)     198d
+trident                                            trident-node-linux-5dqnk                                          2/2     Running                       0                   168d
+trident                                            trident-node-linux-5ljq5                                          2/2     Running                       0                   168d
+trident                                            trident-node-linux-8jxcm                                          2/2     Running                       0                   168d
+trident                                            trident-node-linux-bqbwl                                          2/2     Running                       0                   69d
+trident                                            trident-node-linux-chlr2                                          2/2     Running                       8 (175d ago)        214d
+trident                                            trident-node-linux-hklbd                                          2/2     Running                       11                  214d
+trident                                            trident-node-linux-jqgcc                                          2/2     Running                       11 (104d ago)       214d
+trident                                            trident-node-linux-jwrm5                                          2/2     Running                       0                   69d
+trident                                            trident-node-linux-kql52                                          2/2     Running                       14 (104d ago)       104d
+trident                                            trident-node-linux-lvbss                                          2/2     Running                       2                   214d
+trident                                            trident-node-linux-mjxxq                                          2/2     Running                       4                   214d
+trident                                            trident-node-linux-pf4sl                                          2/2     Running                       9 (175d ago)        198d
+trident                                            trident-node-linux-rlwgg                                          2/2     Running                       0                   214d
+trident                                            trident-node-linux-s4flf                                          2/2     Running                       5 (70d ago)         214d
+trident                                            trident-node-linux-vbc5m                                          2/2     Running                       0                   70d
+trident                                            trident-node-linux-vvwdx                                          2/2     Running                       2                   214d
+trident                                            trident-node-linux-z6f6x                                          2/2     Running                       0                   168d
+uat-common                                         gemfire-uat-locator-0                                             0/1     CrashLoopBackOff              37821 (2m17s ago)   137d
+uat-istio-system                                   istiod-uat-istio-59bdd5d9-bb7ng                                   1/1     Running                       0                   8d
+uat-istio-system                                   uat-istio-gateway-54d8974f96-s64wj                                1/1     Running                       0                   8d
+uat-istio-system                                   uat-istio-gateway-54d8974f96-ztqjk                                1/1     Running                       0                   8d
+uat-kafka                                          uat-console-console-deployment-66ccb478cc-8n7wc                   2/2     Running                       0                   8d
+uat-kafka                                          uat-kafka-cluster-broker-0                                        1/1     Running                       0                   8d
+uat-kafka                                          uat-kafka-cluster-broker-1                                        1/1     Running                       0                   8d
+uat-kafka                                          uat-kafka-cluster-broker-2                                        1/1     Running                       0                   8d
+uat-kafka                                          uat-kafka-cluster-controller-3                                    1/1     Running                       0                   8d
+uat-kafka                                          uat-kafka-cluster-controller-4                                    1/1     Running                       0                   8d
+uat-kafka                                          uat-kafka-cluster-controller-5                                    1/1     Running                       0                   8d
+uat-kafka                                          uat-kafka-cluster-cruise-control-79d4849778-vptk2                 1/1     Running                       1 (44h ago)         8d
+uat-kafka                                          uat-kafka-cluster-entity-operator-d4cb95b7b-gtpfv                 2/2     Running                       0                   8d
+uat-kafka                                          uat-kafka-mirror-maker-mirrormaker2-0                             0/1     Pending                       0                   8d
+uat-offline-jobs                                   pooling-gatewaypooling-7b78d6ddfb-zhdvj                           2/2     Running                       0                   8d
